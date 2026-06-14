@@ -1,16 +1,13 @@
 import {
 	Bot,
 	CalendarCheck,
-	CheckCircle2,
 	Coffee,
 	ContactRound,
 	CreditCard,
 	LayoutDashboard,
 	MessageCircle,
 	Send,
-	Sparkles,
 	Store,
-	TrendingUp,
 	Users,
 	Utensils
 } from '@lucide/svelte';

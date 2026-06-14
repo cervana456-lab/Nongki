@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import AuthShell from '$lib/components/auth/AuthShell.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
@@ -38,7 +39,7 @@
 		}
 
 		message = result.message;
-		await goto('/dashboard');
+		await goto(resolve('/dashboard'));
 	}
 </script>
 
@@ -47,7 +48,6 @@
 	title="Buat akun Nongki"
 	description="Daftarkan bisnis F&B kamu dan mulai siapkan workspace demo."
 	highlights={['Demo workspace', 'Ningki ready', 'CRM otomatis']}
-	mode="register"
 >
 	<form class="space-y-5" onsubmit={handleSubmit}>
 		<Field.Group>

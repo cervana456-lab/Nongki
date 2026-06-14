@@ -1,16 +1,12 @@
 <script lang="ts">
-	import {
-		featureNavigation,
-		productNavigation,
-		siteConfig,
-		solutionNavigation
-	} from '$lib/constants/header';
+	import { productNavigation, siteConfig, solutionNavigation } from '$lib/constants/header';
 	import logo from '$lib/assets/logo.png';
 	import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js';
 	import { cn } from '$lib/utils.js';
 	import { navigationMenuTriggerStyle } from '$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { useIsMobile } from '$lib/hooks/is-mobile';
+	import type { Component } from 'svelte';
 
 	const isMobile = useIsMobile();
 
@@ -18,7 +14,7 @@
 		title: string;
 		href: string;
 		content: string;
-		icon?: any;
+		icon?: Component;
 	};
 </script>
 
@@ -120,23 +116,6 @@
 			<NavigationMenu.Content>
 				<ul class="grid w-105 gap-2 p-2">
 					{#each solutionNavigation as item (item.href)}
-						{@render ListItem({
-							href: item.href,
-							title: item.title,
-							content: item.description,
-							icon: item.icon
-						})}
-					{/each}
-				</ul>
-			</NavigationMenu.Content>
-		</NavigationMenu.Item>
-
-		<NavigationMenu.Item>
-			<NavigationMenu.Trigger>Fitur</NavigationMenu.Trigger>
-
-			<NavigationMenu.Content>
-				<ul class="grid w-105 gap-2 p-2 sm:w-120 md:w-140 md:grid-cols-2">
-					{#each featureNavigation as item (item.href)}
 						{@render ListItem({
 							href: item.href,
 							title: item.title,

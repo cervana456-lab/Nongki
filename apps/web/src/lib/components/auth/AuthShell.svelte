@@ -14,7 +14,6 @@
 		title: string;
 		description: string;
 		highlights?: string[];
-		mode?: 'login' | 'register';
 		children: Snippet;
 	} = $props();
 </script>

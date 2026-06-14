@@ -48,7 +48,7 @@ Produk yang sering ditanya tidak pernah dianalisis.
 Pelanggan potensial hilang tanpa reminder.
 ```
 
-Ini cocok karena masalah utama project kamu memang: chat pelanggan tersebar, owner lupa follow-up, tidak tahu customer potensial, dan tidak punya CRM. 
+Ini cocok karena masalah utama project kamu memang: chat pelanggan tersebar, owner lupa follow-up, tidak tahu customer potensial, dan tidak punya CRM.
 
 ---
 
@@ -158,7 +158,7 @@ Knowledge Gap
 Pertanyaan yang gagal dijawab disimpan agar bisnis bisa melengkapi knowledge base.
 ```
 
-Fitur paling kuat buat ditonjolkan adalah **Owner WhatsApp Digest**, karena owner UMKM belum tentu buka dashboard, tapi hampir pasti buka WhatsApp. 
+Fitur paling kuat buat ditonjolkan adalah **Owner WhatsApp Digest**, karena owner UMKM belum tentu buka dashboard, tapi hampir pasti buka WhatsApp.
 
 ---
 
@@ -360,7 +360,7 @@ Step:
 7. Owner approve follow-up
 ```
 
-Ini sesuai demo flow project kamu: customer chat → AI reply → Customer 360 → insight → Owner Digest → Growth Card → campaign approval. 
+Ini sesuai demo flow project kamu: customer chat → AI reply → Customer 360 → insight → Owner Digest → Growth Card → campaign approval.
 
 ---
 

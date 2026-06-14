@@ -20,7 +20,7 @@
 		</Reveal>
 
 		<div class="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-			{#each feature.capabilities as capability, index (capability.title)}
+			{#each feature.capabilities.slice(0, 6) as capability, index (capability.title)}
 				{@const Icon = capability.icon}
 				<Reveal delay={index * 0.04}>
 					<article

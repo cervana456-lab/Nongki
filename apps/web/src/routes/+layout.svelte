@@ -7,7 +7,6 @@
 	import QueryProvider from '$lib/providers/QueryProvider.svelte';
 	import Footer from '$lib/components/layouts/Footer.svelte';
 
-
 	const title = 'Nongki — AI WhatsApp Assistant untuk Bisnis';
 	const description =
 		'Nongki membantu bisnis mengelola chat WhatsApp, customer, order, reservasi, reminder, dan human handoff dengan bantuan AI.';
@@ -17,7 +16,10 @@
 	<title>{title}</title>
 
 	<meta name="description" content={description} />
-	<meta name="keywords" content="Nongki, AI WhatsApp, bisnis, UMKM, chatbot, CRM, order, reservasi" />
+	<meta
+		name="keywords"
+		content="Nongki, AI WhatsApp, bisnis, UMKM, chatbot, CRM, order, reservasi"
+	/>
 	<meta name="author" content="Nongki" />
 	<meta name="robots" content="index, follow" />
 

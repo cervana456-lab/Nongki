@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Progress as ProgressPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { Progress as ProgressPrimitive } from 'bits-ui';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
 
 	let {
 		ref = $bindable(null),
@@ -14,14 +14,17 @@
 <ProgressPrimitive.Root
 	bind:ref
 	data-slot="progress"
-	class={cn("bg-muted h-3 rounded-full border-2 border-border relative flex w-full items-center overflow-hidden", className)}
+	class={cn(
+		'relative flex h-3 w-full items-center overflow-hidden rounded-full border-2 border-border bg-muted',
+		className
+	)}
 	{value}
 	{max}
 	{...restProps}
 >
 	<div
 		data-slot="progress-indicator"
-		class="bg-primary size-full flex-1 rounded-full transition-all"
+		class="size-full flex-1 rounded-full bg-primary transition-all"
 		style="transform: translateX(-{100 - (100 * (value ?? 0)) / (max ?? 1)}%)"
 	></div>
 </ProgressPrimitive.Root>

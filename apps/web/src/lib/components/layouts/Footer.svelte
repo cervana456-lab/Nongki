@@ -28,7 +28,7 @@
 
 				<div class="mt-4">
 					<span
-						class="inline-flex rounded-full border-2 bg-background px-4 py-2 text-xs font-bold shadow-3d-sm"
+						class="shadow-3d-sm inline-flex rounded-full border-2 bg-background px-4 py-2 text-xs font-bold"
 					>
 						{footerBrand.tagline}
 					</span>
@@ -37,7 +37,7 @@
 				<div class="mt-4 flex flex-wrap gap-2">
 					{#each footerPills as pill (pill)}
 						<span
-							class="rounded-full border-2 bg-background px-3 py-1 text-xs font-bold text-muted-foreground shadow-3d-sm"
+							class="shadow-3d-sm rounded-full border-2 bg-background px-3 py-1 text-xs font-bold text-muted-foreground"
 						>
 							{pill}
 						</span>

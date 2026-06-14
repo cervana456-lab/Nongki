@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { LayoutDashboard, LogOut, Settings, UserCircle } from "@lucide/svelte";
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { LayoutDashboard, LogOut, Settings, UserCircle } from '@lucide/svelte';
 </script>
 
 <DropdownMenu.Root>

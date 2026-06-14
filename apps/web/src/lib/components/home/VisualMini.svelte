@@ -10,7 +10,7 @@
 	} from '@lucide/svelte';
 	import type { VisualType } from '$lib/constants/home/landingPage';
 
-	let { type = 'chat', compact = false }: { type?: VisualType; compact?: boolean } = $props();
+	let { type = 'chat' }: { type?: VisualType } = $props();
 </script>
 
 <div class="relative overflow-hidden rounded-2xl border-2 border-border bg-muted/40 p-3">

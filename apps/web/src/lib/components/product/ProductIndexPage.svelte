@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Reveal from '$lib/components/home/Reveal.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { productIndex, productIndexFlow, productPages } from '$lib/constants/product';
 	import ProductFlowCanvas from './flow/ProductFlowCanvas.svelte';
 	import ProductMockup from './ProductMockup.svelte';
@@ -24,19 +25,9 @@
 				</p>
 
 				<div class="flex flex-col gap-3 sm:flex-row">
-					<a
-						href="/auth/register"
-						class="shadow-3d-primary inline-flex h-12 items-center justify-center rounded-xl border-2 border-primary bg-primary px-6 font-bold text-primary-foreground transition-all hover:-translate-y-0.5 active:translate-y-1"
-					>
-						Mulai Gratis
-					</a>
+					<Button href="/auth/register" size="lg">Mulai Gratis</Button>
 
-					<a
-						href="#product-grid"
-						class="shadow-3d inline-flex h-12 items-center justify-center rounded-xl border-2 bg-background px-6 font-bold transition-all hover:-translate-y-0.5 active:translate-y-1"
-					>
-						Lihat Produk
-					</a>
+					<Button href="#product-grid" variant="outline" size="lg">Lihat Produk</Button>
 				</div>
 			</div>
 		</Reveal>
@@ -129,12 +120,7 @@
 					Pilih modul pertama, hubungkan workflow chat, lalu biarkan data pelanggan tersusun rapi.
 				</p>
 
-				<a
-					href="/auth/register"
-					class="inline-flex h-12 items-center justify-center rounded-xl border-2 border-background bg-background px-6 font-bold text-primary shadow-[0_5px_0_0_var(--shadow-3d-primary)] transition-all hover:-translate-y-0.5 active:translate-y-1"
-				>
-					Mulai Gratis
-				</a>
+				<Button href="/auth/register" variant="secondary" size="lg">Mulai Gratis</Button>
 			</div>
 		</Reveal>
 	</div>

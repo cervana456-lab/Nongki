@@ -2,7 +2,6 @@
 	import { onMount, tick } from 'svelte';
 	import {
 		authNavigation,
-		featureNavigation,
 		productNavigation,
 		siteConfig,
 		solutionNavigation
@@ -31,10 +30,6 @@
 		{
 			title: 'Solusi',
 			items: solutionNavigation
-		},
-		{
-			title: 'Fitur',
-			items: featureNavigation
 		}
 	];
 

@@ -108,9 +108,7 @@
 				class="relative z-20 mx-auto max-w-md transform-gpu transition-transform duration-200 ease-out will-change-transform"
 				style:transform={phoneTransform}
 			>
-				<div
-					class="rounded-[2.5rem] p-3 shadow-[0_18px_0_0_rgba(0,0,0,0.24)]"
-				>
+				<div class="rounded-[2.5rem] p-3 shadow-[0_18px_0_0_rgba(0,0,0,0.24)]">
 					<MockPhone
 						title="Ningki Digest"
 						subtitle="ringkasan owner"

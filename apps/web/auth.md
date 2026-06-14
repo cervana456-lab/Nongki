@@ -1,4 +1,4 @@
-Betul. Jangan build form dari scratch. Prompt auth-nya harus diarahkan supaya **pakai component UI existing**: `button`, `input`, `field`, `label`, `card`, `select/native-select` kalau ada, bukan bikin wrapper input custom sendiri. Di codebase juga sudah ada komponen UI seperti `button`, `input`, `field`, `label`, `card`, dan lain-lain di `src/lib/components/ui/*`, jadi auth UI harus memanfaatkan itu. 
+Betul. Jangan build form dari scratch. Prompt auth-nya harus diarahkan supaya **pakai component UI existing**: `button`, `input`, `field`, `label`, `card`, `select/native-select` kalau ada, bukan bikin wrapper input custom sendiri. Di codebase juga sudah ada komponen UI seperti `button`, `input`, `field`, `label`, `card`, dan lain-lain di `src/lib/components/ui/*`, jadi auth UI harus memanfaatkan itu.
 
 Pakai prompt revisi ini:
 

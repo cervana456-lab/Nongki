@@ -4,11 +4,6 @@
 	import FeatureCtaSection from './FeatureCtaSection.svelte';
 	import FeatureHero from './FeatureHero.svelte';
 	import FeatureHowItWorksSection from './FeatureHowItWorksSection.svelte';
-	import FeatureIntegrationSection from './FeatureIntegrationSection.svelte';
-	import FeaturePreviewPanel from './FeaturePreviewPanel.svelte';
-	import FeatureProblemSection from './FeatureProblemSection.svelte';
-	import FeatureRelatedSection from './FeatureRelatedSection.svelte';
-	import FeatureUseCaseSection from './FeatureUseCaseSection.svelte';
 
 	let { feature }: { feature: FeaturePageData } = $props();
 </script>
@@ -19,11 +14,6 @@
 </svelte:head>
 
 <FeatureHero {feature} />
-<FeatureProblemSection {feature} />
 <FeatureHowItWorksSection {feature} />
-<FeaturePreviewPanel {feature} />
 <FeatureCapabilitySection {feature} />
-<FeatureUseCaseSection {feature} />
-<FeatureIntegrationSection {feature} />
-<FeatureRelatedSection {feature} />
 <FeatureCtaSection {feature} />

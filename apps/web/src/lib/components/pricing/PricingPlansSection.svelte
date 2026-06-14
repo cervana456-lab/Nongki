@@ -23,7 +23,7 @@
 		</Reveal>
 
 		<div class="mt-10 grid gap-5 lg:grid-cols-3">
-			{#each pricingPlans as plan, index (plan.id)}
+			{#each pricingPlans.slice(0, 3) as plan, index (plan.id)}
 				{@const Icon = plan.icon}
 				<Reveal delay={index * 0.06}>
 					<Card.Root

@@ -17,7 +17,7 @@
 
 		<Reveal delay={0.1} class="mt-10">
 			<Accordion.Root type="single" class="grid gap-4">
-				{#each pricingFaqs as faq (faq.question)}
+				{#each pricingFaqs.slice(0, 4) as faq (faq.question)}
 					<Accordion.Item
 						value={faq.question}
 						class="shadow-3d-sm rounded-3xl border-2 bg-background px-5"

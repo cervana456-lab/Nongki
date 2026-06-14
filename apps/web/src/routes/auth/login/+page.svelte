@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import AuthShell from '$lib/components/auth/AuthShell.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
@@ -47,7 +48,7 @@
 		}
 
 		message = result.message;
-		await goto('/dashboard');
+		await goto(resolve('/dashboard'));
 	}
 </script>
 
@@ -56,7 +57,6 @@
 	title="Masuk ke Nongki"
 	description="Lanjutkan mengelola chat, customer, order, dan digest dari dashboard."
 	highlights={['Inbox CRM', 'Customer 360', 'Owner digest']}
-	mode="login"
 >
 	<form class="space-y-5" onsubmit={handleSubmit}>
 		<Field.Group>

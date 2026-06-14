@@ -1,7 +1,4 @@
 <script lang="ts">
-	import PricingAstraPaySection from './PricingAstraPaySection.svelte';
-	import PricingComparisonSection from './PricingComparisonSection.svelte';
-	import PricingCreditSection from './PricingCreditSection.svelte';
 	import PricingCtaSection from './PricingCtaSection.svelte';
 	import PricingFaqSection from './PricingFaqSection.svelte';
 	import PricingHero from './PricingHero.svelte';
@@ -18,8 +15,5 @@
 
 <PricingHero />
 <PricingPlansSection />
-<PricingCreditSection />
-<PricingAstraPaySection />
-<PricingComparisonSection />
 <PricingFaqSection />
 <PricingCtaSection />

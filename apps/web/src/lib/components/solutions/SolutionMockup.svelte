@@ -64,9 +64,9 @@
 				<div
 					class="mx-auto grid aspect-square max-w-36 grid-cols-5 gap-1 rounded-2xl border-2 bg-muted/40 p-3"
 				>
-					{#each Array(25) as _, index (index)}
+					{#each Array.from({ length: 25 }, (_, index) => index) as cell (cell)}
 						<span
-							class={`rounded-sm ${index % 3 === 0 || index % 7 === 0 ? 'bg-foreground' : 'bg-background'}`}
+							class={`rounded-sm ${cell % 3 === 0 || cell % 7 === 0 ? 'bg-foreground' : 'bg-background'}`}
 						></span>
 					{/each}
 				</div>

@@ -24,7 +24,7 @@
 	</Reveal>
 
 	<div class="mt-10 grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-12">
-		{#each featurePreview.items as item, index (item.href)}
+		{#each featurePreview.items.slice(0, 6) as item, index (item.href)}
 			<Reveal delay={index * 0.05} class={layoutClass(item.layout)}>
 				<FeaturePreviewCard
 					title={item.title}

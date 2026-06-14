@@ -109,7 +109,9 @@
 		</aside>
 
 		<div class="relative h-full overflow-hidden py-8">
-			<div class="pointer-events-none absolute top-8 right-0 bottom-8 z-20 w-1 rounded-full bg-background/70">
+			<div
+				class="pointer-events-none absolute top-8 right-0 bottom-8 z-20 w-1 rounded-full bg-background/70"
+			>
 				<div
 					class="w-full rounded-full bg-primary transition-all duration-200"
 					style={`height: ${Math.max(8, progress * 100)}%`}
@@ -133,7 +135,7 @@
 
 			<div
 				bind:this={scrollPanelEl}
-				class="scrollbar-none h-full overflow-y-auto overscroll-contain pr-4"
+				class="h-full scrollbar-none overflow-y-auto overscroll-contain pr-4"
 			>
 				<div class="space-y-6 pb-8">
 					{#each items as item, index (item.href)}
