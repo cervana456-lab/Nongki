@@ -70,10 +70,6 @@
 		class="relative z-10 mx-auto grid w-full max-w-7xl items-center gap-10 px-4 pt-12 pb-12 lg:grid-cols-[0.92fr_1.08fr] lg:py-20"
 	>
 		<div class="space-y-6">
-			<p class="text-xs font-bold tracking-[0.2em] text-primary uppercase">
-				{heroOverview.eyebrow}
-			</p>
-
 			<h1
 				bind:this={titleEl}
 				class="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"

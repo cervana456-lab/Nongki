@@ -8,8 +8,21 @@
 		Workflow
 	} from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import Seo from '$lib/components/seo/Seo.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
+
+	const title = 'Docs Nongki';
+	const description =
+		'Dokumentasi Nongki untuk WhatsApp CRM, AI Agent, Customer 360, QRIS Payment, owner digest, dan workflow UMKM F&B.';
+
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'WebPage',
+		name: title,
+		description,
+		url: 'https://nongki.app/docs'
+	};
 
 	const docsItems = [
 		{
@@ -49,13 +62,7 @@
 	];
 </script>
 
-<svelte:head>
-	<title>Docs | Nongki</title>
-	<meta
-		name="description"
-		content="Dokumentasi Nongki sedang disiapkan untuk WhatsApp CRM, AI Agent, Customer 360, QRIS Payment, dan Owner Digest."
-	/>
-</svelte:head>
+<Seo {title} {description} path="/docs" {jsonLd} />
 
 <section class="relative overflow-hidden bg-background px-4 py-16 md:py-28">
 	<div
@@ -99,7 +106,7 @@
 
 				<Card.Description class="text-base leading-relaxed">
 					Dokumentasi sedang dibangun bertahap. Untuk sementara, kamu bisa mengeksplorasi halaman
-					Product, Features, Solutions, dan Pricing.
+					Product, Solutions, dan Pricing.
 				</Card.Description>
 			</Card.Header>
 
@@ -170,7 +177,7 @@
 			Sambil menunggu dokumentasi lengkap, coba alur produknya dulu.
 		</h2>
 		<p class="mx-auto mt-4 max-w-2xl text-lg leading-relaxed opacity-85">
-			Mulai dari Product, Features, dan Solutions untuk memahami gambaran besar Nongki.
+			Mulai dari Product dan Solutions untuk memahami gambaran besar Nongki.
 		</p>
 		<div class="mt-8 grid gap-3 sm:flex sm:justify-center">
 			<Button
@@ -181,12 +188,12 @@
 				Lihat Produk
 			</Button>
 			<Button
-				href="/features/ai-reply"
+				href="/product/ai-agent"
 				size="lg"
 				variant="outline"
 				class="border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
 			>
-				Lihat Fitur AI Reply
+				Lihat AI Agent
 			</Button>
 		</div>
 	</div>

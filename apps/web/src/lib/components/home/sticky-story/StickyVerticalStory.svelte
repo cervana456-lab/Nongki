@@ -13,6 +13,10 @@
 
 	let { eyebrow, title, description, cta, points = [], items }: StickyVerticalStoryProps = $props();
 
+	function getItemKey(item: StickyVerticalStoryProps['items'][number], index: number) {
+		return `${item.href}-${item.title}-${index}`;
+	}
+
 	function updateProgress(panel: HTMLDivElement) {
 		const maxScroll = panel.scrollHeight - panel.clientHeight;
 
@@ -72,6 +76,7 @@
 		function handleScroll() {
 			const currentPanel = scrollPanelEl;
 			if (!currentPanel) return;
+
 			updateProgress(currentPanel);
 		}
 
@@ -97,7 +102,7 @@
 		<StickyStoryLeftPanel {eyebrow} {title} {description} {cta} {points} />
 
 		<div class="mt-8 grid gap-5">
-			{#each items as item, index (item.href)}
+			{#each items as item, index (getItemKey(item, index))}
 				<StickyStoryCard {item} {index} />
 			{/each}
 		</div>
@@ -119,7 +124,7 @@
 			</div>
 
 			<div class="pointer-events-none absolute top-8 right-5 z-20 flex flex-col gap-2">
-				{#each items as item, index (item.href)}
+				{#each items as item, index (getItemKey(item, index))}
 					<div
 						class={`size-2 rounded-full border transition-all duration-200 ${
 							activeIndex === index
@@ -138,7 +143,7 @@
 				class="h-full scrollbar-none overflow-y-auto overscroll-contain pr-4"
 			>
 				<div class="space-y-6 pb-8">
-					{#each items as item, index (item.href)}
+					{#each items as item, index (getItemKey(item, index))}
 						<div class={activeIndex === index ? 'opacity-100' : 'opacity-90'}>
 							<StickyStoryCard {item} {index} />
 						</div>

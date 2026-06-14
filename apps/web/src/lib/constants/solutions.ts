@@ -129,7 +129,7 @@ export const solutionPages: Record<SolutionSlug, SolutionPageData> = {
 				{
 					title: 'Lost Order Reminder',
 					description: 'Tandai customer yang tertarik tapi belum checkout.',
-					href: '/features/reminder',
+					href: '/product/dashboard',
 					icon: CalendarCheck
 				},
 				{
@@ -283,7 +283,7 @@ export const solutionPages: Record<SolutionSlug, SolutionPageData> = {
 				{
 					title: 'Human Takeover',
 					description: 'Admin mengambil alih percakapan sensitif.',
-					href: '/features/human-takeover',
+					href: '/product/ai-agent',
 					icon: Users
 				}
 			]
@@ -413,7 +413,7 @@ export const solutionPages: Record<SolutionSlug, SolutionPageData> = {
 				{
 					title: 'Campaign Draft',
 					description: 'Draft promo dan reminder bisa direview owner.',
-					href: '/features/automation-flow',
+					href: '/product/dashboard',
 					icon: Send
 				},
 				{

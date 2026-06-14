@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import AuthShell from '$lib/components/auth/AuthShell.svelte';
+	import Seo from '$lib/components/seo/Seo.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Field from '$lib/components/ui/field';
 	import { Input } from '$lib/components/ui/input';
@@ -51,6 +52,13 @@
 		await goto(resolve('/dashboard'));
 	}
 </script>
+
+<Seo
+	title="Masuk ke Nongki"
+	description="Masuk ke workspace demo Nongki untuk mengelola chat, customer, order, dan digest."
+	path="/auth/login"
+	robots="noindex, nofollow"
+/>
 
 <AuthShell
 	eyebrow={authCopy.login.eyebrow}

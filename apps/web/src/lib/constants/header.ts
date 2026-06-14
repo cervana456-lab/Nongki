@@ -6,15 +6,12 @@ import {
 	FileText,
 	Handshake,
 	Home,
-	Inbox,
 	MessageCircle,
 	PhoneCall,
 	QrCode,
-	Settings,
 	ShoppingBag,
 	Sparkles,
-	Users,
-	Workflow
+	Users
 } from '@lucide/svelte';
 
 export const siteConfig = {
@@ -109,45 +106,6 @@ export const solutionNavigation = [
 		href: '/solutions/umkm-fnb',
 		description: 'CRM ringan untuk bisnis kecil tanpa input data manual yang ribet.',
 		icon: Handshake
-	}
-];
-
-export const featureNavigation = [
-	{
-		title: 'AI Reply',
-		href: '/features/ai-reply',
-		description: 'Ningki membalas customer berdasarkan knowledge bisnis.',
-		icon: Bot
-	},
-	{
-		title: 'Knowledge Base',
-		href: '/features/knowledge-base',
-		description: 'Upload menu, FAQ, promo, SOP, dan dokumen bisnis.',
-		icon: FileText
-	},
-	{
-		title: 'Inbox CRM',
-		href: '/features/inbox-crm',
-		description: 'Simpan semua chat sebagai conversation dan message history.',
-		icon: Inbox
-	},
-	{
-		title: 'Human Takeover',
-		href: '/features/human-takeover',
-		description: 'AI berhenti membalas saat customer perlu admin manusia.',
-		icon: Users
-	},
-	{
-		title: 'Reminder',
-		href: '/features/reminder',
-		description: 'Follow-up pembayaran, reservasi, dan tugas admin.',
-		icon: Settings
-	},
-	{
-		title: 'Automation Flow',
-		href: '/features/automation-flow',
-		description: 'WhatsApp → AI → CRM → Order → QRIS → Notification.',
-		icon: Workflow
 	}
 ];
 

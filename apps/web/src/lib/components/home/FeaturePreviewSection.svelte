@@ -10,7 +10,12 @@
 		if (layout === 'digest') return 'lg:col-span-7';
 		if (layout === 'agent') return 'lg:col-span-5';
 		if (layout === 'wide') return 'lg:col-span-6';
+
 		return 'sm:col-span-6 lg:col-span-4';
+	}
+
+	function getFeatureItemKey(item: (typeof featurePreview.items)[number], index: number) {
+		return `${item.href}-${item.title}-${index}`;
 	}
 </script>
 
@@ -24,7 +29,7 @@
 	</Reveal>
 
 	<div class="mt-10 grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-12">
-		{#each featurePreview.items.slice(0, 6) as item, index (item.href)}
+		{#each featurePreview.items.slice(0, 6) as item, index (getFeatureItemKey(item, index))}
 			<Reveal delay={index * 0.05} class={layoutClass(item.layout)}>
 				<FeaturePreviewCard
 					title={item.title}

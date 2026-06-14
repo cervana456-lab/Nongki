@@ -74,7 +74,7 @@
 			<NavigationMenu.Trigger>Produk</NavigationMenu.Trigger>
 
 			<NavigationMenu.Content>
-				<ul class="grid gap-2 p-2 md:w-130 lg:w-170 lg:grid-cols-[0.8fr_1fr]">
+				<ul class="grid gap-2 p-2 md:w-150 lg:w-190 lg:grid-cols-[0.85fr_1fr_1fr]">
 					<li class="row-span-3">
 						<NavigationMenu.Link
 							class="flex h-full w-full flex-col justify-end rounded-md bg-linear-to-b from-muted/60 to-muted p-5 no-underline outline-hidden select-none focus:shadow-md"
@@ -98,7 +98,7 @@
 						</NavigationMenu.Link>
 					</li>
 
-					{#each productNavigation.slice(0, 3) as item (item.href)}
+					{#each productNavigation as item (item.href)}
 						{@render ListItem({
 							href: item.href,
 							title: item.title,

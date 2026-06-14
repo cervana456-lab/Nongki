@@ -1,10 +1,25 @@
 <script lang="ts">
 	import Reveal from '$lib/components/home/Reveal.svelte';
+	import Seo from '$lib/components/seo/Seo.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { productIndex, productIndexFlow, productPages } from '$lib/constants/product';
 	import ProductFlowCanvas from './flow/ProductFlowCanvas.svelte';
 	import ProductMockup from './ProductMockup.svelte';
+
+	const title = 'Produk Nongki - AI WhatsApp CRM, Customer 360, QRIS, dan Owner Dashboard';
+	const description =
+		'Lihat modul produk Nongki untuk mengelola chat WhatsApp, AI Agent, Customer 360, order/reservasi, QRIS Payment, dan dashboard owner untuk UMKM F&B.';
+
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'CollectionPage',
+		name: title,
+		description,
+		url: 'https://nongki.app/product'
+	};
 </script>
+
+<Seo {title} {description} path="/product" {jsonLd} />
 
 <section class="bg-background py-16 md:py-28">
 	<div

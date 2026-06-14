@@ -38,7 +38,7 @@
 		<DropdownMenu.Separator />
 
 		<DropdownMenu.Item>
-			<a href="/auth/logout" class="flex w-full items-center gap-2 text-destructive">
+			<a href="/auth/login" class="flex w-full items-center gap-2 text-destructive">
 				<LogOut class="size-4" />
 				Logout
 			</a>

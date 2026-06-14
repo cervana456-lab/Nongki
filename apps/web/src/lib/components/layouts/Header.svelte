@@ -219,7 +219,7 @@
 
 						<Button href="/settings" variant="outline" onclick={closeMobileMenu}>Settings</Button>
 
-						<Button href="/auth/logout" variant="destructive" onclick={closeMobileMenu}>
+						<Button href="/auth/login" variant="destructive" onclick={closeMobileMenu}>
 							Logout
 						</Button>
 					{:else}
