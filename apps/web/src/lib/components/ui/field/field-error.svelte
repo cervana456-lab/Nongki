@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from "$lib/utils.js";
-	import type { HTMLAttributes } from "svelte/elements";
-	import type { Snippet } from "svelte";
+	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import type { Snippet } from 'svelte';
 
 	let {
 		ref = $bindable(null),
@@ -38,7 +38,10 @@
 		bind:this={ref}
 		role="alert"
 		data-slot="field-error"
-		class={cn("text-destructive rounded-xl bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs font-semibold", className)}
+		class={cn(
+			'rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive',
+			className
+		)}
 		{...restProps}
 	>
 		{#if children}

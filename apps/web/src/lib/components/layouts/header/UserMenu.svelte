@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import { LayoutDashboard, LogOut, Settings, UserCircle } from "@lucide/svelte";
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { LayoutDashboard, LogOut, Settings, UserCircle } from '@lucide/svelte';
 </script>
 
 <DropdownMenu.Root>
@@ -38,7 +38,7 @@
 		<DropdownMenu.Separator />
 
 		<DropdownMenu.Item>
-			<a href="/auth/logout" class="flex w-full items-center gap-2 text-destructive">
+			<a href="/auth/login" class="flex w-full items-center gap-2 text-destructive">
 				<LogOut class="size-4" />
 				Logout
 			</a>

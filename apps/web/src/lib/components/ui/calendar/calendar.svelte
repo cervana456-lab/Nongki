@@ -1,41 +1,41 @@
 <script lang="ts">
-	import { Calendar as CalendarPrimitive } from "bits-ui";
-	import * as Calendar from "./index.js";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import type { ButtonVariant } from "../button/button.svelte";
-	import { isEqualMonth, type DateValue } from "@internationalized/date";
-	import type { Snippet } from "svelte";
+	import { Calendar as CalendarPrimitive } from 'bits-ui';
+	import * as Calendar from './index.js';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+	import type { ButtonVariant } from '../button/button.svelte';
+	import { isEqualMonth, type DateValue } from '@internationalized/date';
+	import type { Snippet } from 'svelte';
 
 	let {
 		ref = $bindable(null),
 		value = $bindable(),
 		placeholder = $bindable(),
 		class: className,
-		weekdayFormat = "short",
-		buttonVariant = "ghost",
-		captionLayout = "label",
-		locale = "en-US",
+		weekdayFormat = 'short',
+		buttonVariant = 'ghost',
+		captionLayout = 'label',
+		locale = 'en-US',
 		months: monthsProp,
 		years,
 		monthFormat: monthFormatProp,
-		yearFormat = "numeric",
+		yearFormat = 'numeric',
 		day,
 		disableDaysOutsideMonth = false,
 		...restProps
 	}: WithoutChildrenOrChild<CalendarPrimitive.RootProps> & {
 		buttonVariant?: ButtonVariant;
-		captionLayout?: "dropdown" | "dropdown-months" | "dropdown-years" | "label";
-		months?: CalendarPrimitive.MonthSelectProps["months"];
-		years?: CalendarPrimitive.YearSelectProps["years"];
-		monthFormat?: CalendarPrimitive.MonthSelectProps["monthFormat"];
-		yearFormat?: CalendarPrimitive.YearSelectProps["yearFormat"];
+		captionLayout?: 'dropdown' | 'dropdown-months' | 'dropdown-years' | 'label';
+		months?: CalendarPrimitive.MonthSelectProps['months'];
+		years?: CalendarPrimitive.YearSelectProps['years'];
+		monthFormat?: CalendarPrimitive.MonthSelectProps['monthFormat'];
+		yearFormat?: CalendarPrimitive.YearSelectProps['yearFormat'];
 		day?: Snippet<[{ day: DateValue; outsideMonth: boolean }]>;
 	} = $props();
 
 	const monthFormat = $derived.by(() => {
 		if (monthFormatProp) return monthFormatProp;
-		if (captionLayout.startsWith("dropdown")) return "short";
-		return "long";
+		if (captionLayout.startsWith('dropdown')) return 'short';
+		return 'long';
 	});
 </script>
 
@@ -50,7 +50,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 	{weekdayFormat}
 	{disableDaysOutsideMonth}
 	class={cn(
-		"p-3 [--cell-size:--spacing(9)] [--cell-radius:0.75rem] rounded-2xl border-2 border-border bg-card shadow-[0_4px_0_0_var(--shadow-3d)] group/calendar in-data-[slot=card-content]:bg-transparent in-data-[slot=card-content]:border-0 in-data-[slot=card-content]:shadow-none in-data-[slot=card-content]:p-0 in-data-[slot=popover-content]:bg-transparent in-data-[slot=popover-content]:border-0 in-data-[slot=popover-content]:shadow-none in-data-[slot=popover-content]:p-0",
+		'group/calendar rounded-2xl border-2 border-border bg-card p-3 shadow-[0_4px_0_0_var(--shadow-3d)] [--cell-radius:0.75rem] [--cell-size:--spacing(9)] in-data-[slot=card-content]:border-0 in-data-[slot=card-content]:bg-transparent in-data-[slot=card-content]:p-0 in-data-[slot=card-content]:shadow-none in-data-[slot=popover-content]:border-0 in-data-[slot=popover-content]:bg-transparent in-data-[slot=popover-content]:p-0 in-data-[slot=popover-content]:shadow-none',
 		className
 	)}
 	{locale}
@@ -97,7 +97,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 											{#if day}
 												{@render day({
 													day: date,
-													outsideMonth: !isEqualMonth(date, month.value),
+													outsideMonth: !isEqualMonth(date, month.value)
 												})}
 											{:else}
 												<Calendar.Day />

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { RangeCalendar as RangeCalendarPrimitive } from "bits-ui";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
+	import { RangeCalendar as RangeCalendarPrimitive } from 'bits-ui';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
 
 	let {
@@ -13,7 +13,7 @@
 
 <span
 	class={cn(
-		"has-focus:border-primary border-input has-focus:ring-primary/20 relative flex rounded-xl border-2 bg-background shadow-[0_2px_0_0_var(--shadow-3d)] has-focus:ring-2",
+		'relative flex rounded-xl border-2 border-input bg-background shadow-[0_2px_0_0_var(--shadow-3d)] has-focus:border-primary has-focus:ring-2 has-focus:ring-primary/20',
 		className
 	)}
 >
@@ -32,11 +32,11 @@
 				{/each}
 			</select>
 			<span
-				class="[&>svg]:text-muted-foreground flex h-(--cell-size) items-center gap-1 rounded-md ps-2 pe-1 text-sm font-medium select-none [&>svg]:size-3.5"
+				class="flex h-(--cell-size) items-center gap-1 rounded-md ps-2 pe-1 text-sm font-medium select-none [&>svg]:size-3.5 [&>svg]:text-muted-foreground"
 				aria-hidden="true"
 			>
 				{yearItems.find((item) => item.value === value)?.label || selectedYearItem.label}
-				<CaretDownIcon class={cn("size-4", className)} />
+				<CaretDownIcon class={cn('size-4', className)} />
 			</span>
 		{/snippet}
 	</RangeCalendarPrimitive.YearSelect>

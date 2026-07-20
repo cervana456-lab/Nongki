@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
-	import { buttonVariants } from "$lib/components/ui/button/index.js";
+	import { Pagination as PaginationPrimitive } from 'bits-ui';
+	import { cn } from '$lib/utils.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeft';
 
 	let {
@@ -14,11 +14,7 @@
 <PaginationPrimitive.PrevButton
 	bind:ref
 	aria-label="Go to previous page"
-	class={cn(
-		buttonVariants({ variant: "ghost", size: "default" }),
-		"pl-1.5!",
-		className
-	)}
+	class={cn(buttonVariants({ variant: 'ghost', size: 'default' }), 'pl-1.5!', className)}
 	{...restProps}
 >
 	<CaretLeftIcon data-icon="inline-start" />

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { Popover as PopoverPrimitive } from "bits-ui";
-	import PopoverPortal from "./popover-portal.svelte";
-	import { cn, type WithoutChildrenOrChild } from "$lib/utils.js";
-	import type { ComponentProps } from "svelte";
+	import { Popover as PopoverPrimitive } from 'bits-ui';
+	import PopoverPortal from './popover-portal.svelte';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+	import type { ComponentProps } from 'svelte';
 
 	let {
 		ref = $bindable(null),
 		class: className,
 		sideOffset = 4,
-		align = "center",
+		align = 'center',
 		portalProps,
 		...restProps
 	}: PopoverPrimitive.ContentProps & {
@@ -23,7 +23,7 @@
 		{sideOffset}
 		{align}
 		class={cn(
-			"bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 border-border flex flex-col gap-2.5 rounded-2xl border-2 p-3 text-xs shadow-[0_8px_0_0_var(--shadow-3d)] duration-100 data-[side=inline-start]:slide-in-from-right-2 data-[side=inline-end]:slide-in-from-left-2 z-50 w-72 origin-(--transform-origin) outline-hidden",
+			'z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-2xl border-2 border-border bg-popover p-3 text-xs text-popover-foreground shadow-[0_8px_0_0_var(--shadow-3d)] outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
 			className
 		)}
 		{...restProps}
