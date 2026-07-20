@@ -1,729 +1,209 @@
-# Database Flow — Ningki/Nongki Microservice Ecosystem
+# Audit Report: Nongki (WhatsApp AI CRM)
 
-Dokumen ini menjelaskan bagaimana setiap layer microservice berinteraksi dengan database, tabel apa yang ditulis dan dibaca di setiap tahap, serta bagaimana data mengalir dari satu service ke service lain.
-
----
-
-## Arsitektur Service dan Kepemilikan DB
-
-```
-apps/web          → hanya baca/tulis via REST ke services/api
-services/api      → pemilik utama semua tabel PostgreSQL via Prisma
-services/ai-engine → baca/tulis ke api via HTTP internal, punya FAISS lokal
-services/wa-worker → baca/tulis ke api via HTTP internal, tidak akses DB langsung
-```
-
-Tidak ada service selain `services/api` yang boleh akses PostgreSQL secara langsung. Semua mutasi data melewati `api`.
+> **Catatan**: Laporan ini murni hasil audit + analisis statis kode. **Tidak ada perubahan kode yang dilakukan.** Semua rekomendasi bersifat actionable tetapi menunggu persetujuan sebelum dieksekusi.
 
 ---
 
-## 1. Flow Registrasi dan Pembuatan Workspace
+## 1. Ringkasan Eksekutif
 
-**Trigger:** User membuka web dan mengisi form register.
+Proyek Nongki adalah aplikasi monorepo multi-service (SvelteKit + Fastify ×2 + FastAPI) dengan arsitektur event-driven (RabbitMQ + Redis) dan infrastruktur Docker Compose + Nginx. Secara keseluruhan **fondasi arsitekturnya matang dan konsisten** (pola module/controller/service/repository di API, command bus via RabbitMQ topic, internal-token auth antar service, idempotensi, refresh-token rotation yang aman). Namun ditemukan **beberapa isu Critical dan High** yang harus diselesaikan sebelum produksi:
 
-**Service:** `apps/web` → `services/api`
+1. **[Critical] AI Engine tidak memvalidasi internal token** (`app/core/security.py` hanya placeholder `pass`) — semua endpoint AI Engine terbuka untuk siapa saja yang bisa menjangkau port-nya.
+2. **[Critical] Secret terekspos di git** — `.env` (berisi `MYSQL_ROOT_PASSWORD`, `JWT_SECRET`, `DEEPSEEK_API_KEY`, dll.) ada di working tree dan berpotensi ter-commit.
+3. **[High] Service internal terekspos ke publik via Docker port mapping** — `wa-worker` (`:5000`), `ai-engine` (`:8001`), `api` (`:4000`), dan terutama **RabbitMQ management UI (`:15673`)** mem-bind port host, padahal hanya butuh komunikasi internal Docker; ini memperluas attack surface drastis.
+4. **[High] Naming mismatch `ai-enggine` (folder) vs `ai-engine` (compose service)** — rawan kebingungan operasional.
+5. **[High] API CORS hanya izinkan `http://localhost:5173`** padahal traffic produksi lewat Nginx; cookie `SameSite=lax` + origin berbeda akan mematahkan autentikasi browser di produksi (tergantung skema origin — lihat Asumsi).
 
-```
-POST /auth/register
-```
-
-**Tabel yang ditulis secara berurutan:**
-
-```
-1. users              → buat record user baru (email, passwordHash, status=active)
-2. businesses         → buat workspace bisnis (ownerId=userId, status=onboarding)
-3. business_members   → tambah owner sebagai member (role=owner)
-4. business_onboarding → buat record onboarding kosong (progressPercent=0)
-5. onboarding_steps   → seed 15 baris step dengan status=pending
-6. agent_settings     → buat default settings (agentName=Ningki, tone=friendly)
-```
-
-Semua ini terjadi dalam satu database transaction. Jika salah satu gagal, semua rollback.
+Rekomendasi prioritas: perbaiki exposure secret, tutup port internal, implementasikan validasi internal-token di AI Engine, dan selaraskan CORS/COOKIE dengan domain publik Nginx.
 
 ---
 
-## 2. Flow Onboarding — AI Guided Setup
-
-**Trigger:** User login pertama kali, diarahkan ke halaman onboarding.
-
-**Service:** `apps/web` → `services/api` → `services/ai-engine`
-
-### 2a. User menjawab pertanyaan onboarding
+## 2. Arsitektur Saat Ini
 
 ```
-POST /onboarding/answer
+                         ┌─────────────────────────┐
+        Browser ───────► │  Nginx (80/443)          │
+                         │  /            → web:5173 │
+                         │  /api/        → api:4000 │
+                         │  /ai/         → ai-engine │
+                         │  /rabbitmq/   → rabbitmq  │
+                         └───────────┬───────────────┘
+                                     │
+        ┌────────────────────────────┼────────────────────────────┐
+        ▼                            ▼                            ▼
+  ┌──────────┐                ┌────────────┐               ┌──────────────┐
+  │ web      │  SSR calls     │ api (4000) │  internal    │ ai-engine    │
+  │ SvelteKit│ ─────────────► │ Fastify    │ ◄──────────► │ FastAPI      │
+  │ :5173    │  API_SSR_URL   │ + Prisma   │ x-internal   │ (8000/8001)  │
+  └──────────┘                └─────┬──────┘  token       └──────┬───────┘
+                                     │  POST /internal/wa/...     │ RabbitMQ
+                                     ▼                            │
+                              ┌────────────┐                      │
+                              │ wa-worker  │  Baileys WhatsApp    │
+                              │ (5000)     │  x-internal-token    │
+                              └────────────┘                      │
+                                     │                            │
+              ┌──────────┬───────────┼────────────┬──────────────┘
+              ▼          ▼           ▼            ▼
+          MySQL      Redis      RabbitMQ     (FAISS/SQLite volumes)
 ```
 
-**Tabel yang dibaca:**
-```
-business_onboarding   → cek current_step dan progress saat ini
-onboarding_steps      → cek step mana yang pending/in_progress
-agent_settings        → baca konfigurasi bisnis yang sudah ada
-```
+**Tools/library utama per layer:**
+- **Frontend (web)**: SvelteKit 2 + Svelte 5 (runes `$state`/`$derived`), Tailwind v4, shadcn-svelte, TanStack Query v6, adapter-vercel.
+- **API (Fastify)**: Fastify 5, Prisma 7 (+ MariaDB adapter), Zod 4, jsonwebtoken, bcryptjs, amqplib, redis 6, pino (via Fastify logger).
+- **AI Engine (FastAPI)**: FastAPI, LangChain/LangGraph, FAISS, Pydantic v2, structlog, aio-pika, redis async.
+- **WA Worker (Hono, bukan Fastify)**: Hono 4 + `@hono/node-server`, Baileys 6, Zod 3, pino, axios.
+- **Infra**: Docker Compose (bridge network `nongki_net`), Nginx alpine, MySQL 8, Redis 7, RabbitMQ 3-management.
 
-**api mengirim ke ai-engine:**
-```
-POST /ai/onboarding/process
-body: { businessId, stepKey, userAnswer, conversationHistory }
-```
-
-**ai-engine memproses dan mengembalikan respons ke api.**
-
-**Tabel yang ditulis:**
-```
-onboarding_steps      → update status step (in_progress → completed)
-business_onboarding   → update currentStep, progressPercent, flag needs*
-agent_settings        → update persona, tone, businessRules jika step agent_persona
-audit_logs            → catat action=ONBOARDING_STEP_COMPLETED
-```
-
-### 2b. User upload dokumen (menu, FAQ, promo)
-
-```
-POST /knowledge/documents/upload
-```
-
-**Tabel yang ditulis:**
-```
-files                 → simpan metadata file (storagePath, mimeType, sizeBytes)
-knowledge_documents   → buat record dokumen (status=draft)
-```
-
-**api lalu trigger ai-engine untuk proses dokumen:**
-```
-POST /ai/knowledge/process
-body: { businessId, documentId }
-```
-
-**ai-engine:**
-- Ekstrak teks dari PDF/gambar
-- Klasifikasi documentType
-- Potong teks menjadi chunk
-- Generate embedding dan simpan ke FAISS dengan key `businessId:documentId`
-
-**api menerima hasil dari ai-engine dan menulis:**
-```
-knowledge_documents   → update status=indexed, extractedText
-knowledge_chunks      → insert N baris chunk (chunkText, chunkIndex, embeddingRef)
-audit_logs            → catat action=KNOWLEDGE_INDEXED
-```
-
-### 2c. Cek readiness sebelum bot aktif
-
-```
-POST /onboarding/check-readiness
-```
-
-**Tabel yang dibaca:**
-```
-onboarding_steps      → hitung step required yang sudah completed
-business_onboarding   → baca flag readyForWhatsapp
-knowledge_documents   → pastikan ada minimal 1 dokumen status=indexed
-whatsapp_sessions     → cek apakah session sudah connected
-```
-
-**Tabel yang ditulis (jika semua syarat terpenuhi):**
-```
-business_onboarding   → set readyForBotActivation=true
-businesses            → update status=active
-```
+**Catatan penting**: WA Worker menggunakan **Hono**, bukan Fastify seperti dokumentasi README-nya yang menyebut "Fastify". Ini inkonsistensi dokumentasi, bukan bug kode.
 
 ---
 
-## 3. Flow Koneksi WhatsApp
+## 3. Temuan per Komponen
 
-**Trigger:** User klik "Hubungkan WhatsApp" di halaman onboarding atau WhatsApp settings.
+### 3.1 SvelteKit (apps/web)
 
-**Service:** `apps/web` → `services/api` → `services/wa-worker`
+- **[Medium] Frontend belum terhubung ke backend sama sekali** — `grep` untuk `PUBLIC_API_URL` / `API_SSR_URL` / `fetch('/api')` di `src/` tidak menemukan satupun penggunaan riil (hanya `fetchpriority` di HeroSection). `vite.config.ts:10` memang set `envDir: '../../'` sehingga env root terbaca, tapi `lib/utils.ts` & `QueryProvider.svelte` tidak membaca env tersebut. **Dampak**: belum ada data fetching nyata; seluruh UI saat ini static/marketing. **Rekomendasi**: buat API client terpusat (e.g. `$lib/api/client.ts`) yang membaca `PUBLIC_API_URL` dan forward cookie, sebelum fitur auth/CRM dibangun.
 
-### 3a. Mulai sesi
+- **[Low] Adapter tidak cocok dengan Dockerfile target production** — `svelte.config.js:1` pakai `@sveltejs/adapter-vercel`, tapi `apps/web/Dockerfile:40-53` (stage `runner`) menjalankan `node build` yang butuh `@sveltejs/adapter-node`. Dockerfile sendiri mencatat hal ini di komentar:53-55 ("Requires @sveltejs/adapter-node..."). **Dampak**: `docker compose build` dengan target `runner` (production) akan gagal/blank. **Rekomendasi**: ganti adapter ke `adapter-node` secara konsisten, atau hapus stage runner jika hanya dev yang dipakai.
 
-```
-POST /whatsapp/session/start
-```
+- **[Low] `allowedHosts` hardcoded `['web','localhost']`** — `vite.config.ts:15`. Saat deploy domain nyata (nongki.app), dev server Vite akan menolak request. **Rekomendasi**: baca dari env atau tambahkan domain produksi.
 
-**api menulis:**
-```
-whatsapp_sessions     → buat record baru (status=qr_pending, businessId)
-```
+- **[Low] Potensi stale state di `QueryProvider`** — `src/lib/providers/QueryProvider.svelte:7` membuat `QueryClient` baru tiap render (tanpa module-level singleton). Karena ini di-render dalam `+layout.svelte`, biasanya aman, tapi jika layout di-instantiate ulang (HMR/error boundary) cache query hilang. **Rekomendasi**: instantiate `QueryClient` di module scope.
 
-**api kirim ke wa-worker:**
-```
-POST /sessions/{businessId}/start
-```
+- **[Info] Prerendering** — `+page.ts:2` set `prerender = true` untuk landing page; konsisten dengan sifat marketing page. Tidak ada masalah.
 
-**wa-worker** membuat sesi Baileys, generate QR code, kirim balik ke api.
+### 3.2 API Service (services/api — Fastify)
 
-**api update:**
-```
-whatsapp_sessions     → update qrCode, qrExpiresAt, status=qr_pending
-notifications         → buat notif type=system "QR siap di-scan"
-```
+- **[High] CORS origin tidak cocok dengan produksi** — `src/plugins/cors.plugin.ts:8` + `src/config/env.ts:44` default `CORS_ORIGIN=http://localhost:5173` dan `.env` tidak override. Di produksi browser akses via Nginx. Dengan `credentials: true`, origin mismatch + cookie policy akan mematahkan sesi login di browser (detail di Asumsi #1). **Rekomendasi**: set `CORS_ORIGIN` ke domain publik yang benar dan pastikan `COOKIE_SAME_SITE` + `COOKIE_SECURE` = true di produksi.
 
-### 3b. QR di-scan user
+- **[Medium] Redis reconnect strategy dimatikan** — `src/lib/redis.ts:22` `reconnectStrategy: false`. Jika Redis drop sekali, koneksi tidak pernah reconnect hingga restart proses. Rate-limit, denylist, idempotensi, dan `auth:me` cache semuanya degrade diam-diam (RedisStore menangkap error → fallback). **Rekomendasi**: enable exponential backoff reconnect (`reconnectStrategy: retries => Math.min(retries * 100, 3000)`).
 
-**wa-worker** mendeteksi QR berhasil di-scan, kirim event ke api:
-```
-POST /internal/wa/session-status
-body: { businessId, status: "connected", phoneNumber }
-```
+- **[Medium] Refresh-token event publish tidak guaranteed (no outbox)** — `auth.service.ts:481` ada TODO eksplisit: event publish gagal → hanya `console.error`, tidak ada outbox table. Jika RabbitMQ down saat register/login, event turunan (onboarding seed, agent settings) hilang. **Rekomendasi**: implementasikan outbox pattern atau retry queue.
 
-**api menulis:**
-```
-whatsapp_sessions     → update status=connected, phoneNumber, lastConnectedAt
-business_onboarding   → set readyForWhatsapp=true
-onboarding_steps      → update step whatsapp_connect menjadi completed
-audit_logs            → catat action=WHATSAPP_CONNECTED
-```
+- **[Low] JWT verify tidak cek `aud`/`iss`** — `src/lib/token.ts:32-49` hanya cek `sub/email/type`. Boleh, tapi sebaiknya tambah `issuer`/`audience` untuk defensiveness.
 
-### 3c. Aktifkan bot
+- **[Low] `EVENT_PRODUCER` duplikat dengan `EVENT_PRODUCER_API`** — `src/config/env.ts:31-32`, `EVENT_PRODUCER` default ke `EVENT_PRODUCER_API`. Redundan tapi tidak berbahaya. **Rekomendasi**: singleton.
 
-```
-POST /whatsapp/bot/enable
-```
+- **[Info] Error handling & validasi konsisten** — Global `errorHandler` (`error.middleware.ts`) menangani `AppError` + `ZodError` → shape `errorResponse` konsisten. Semua route auth divalidasi via Zod. Ini **baik**.
 
-**Syarat:** readyForBotActivation harus true.
+- **[Info] Auth kuat** — refresh-token family rotation + replay detection (`auth.service.ts:154-237`) adalah implementasi menurut best practice. Denylist access token via Redis (`auth.middleware.ts:16`). **Baik**.
 
-**api menulis:**
-```
-whatsapp_sessions     → set botEnabled=true
-agent_settings        → set autoReplyEnabled=true
-audit_logs            → catat action=BOT_ENABLED
-```
+### 3.3 AI Engine (services/ai-enggine — FastAPI)
 
----
+- **[Critical] Internal token tidak divalidasi** — `app/core/security.py:7` `verify_internal_token()` hanya `pass` (placeholder). Tidak ada middleware/dependency yang memanggilnya di `app/main.py` atau router manapun. Artinya endpoint `/agent/*`, `/knowledge`, `/tools/debug` **terbuka tanpa auth**. **Dampak**: siapa saja yang bisa reach port 8001 (atau 8000 internal) dapat memicu agent run / knowledge process / tools debug. **Rekomendasi**: implementasikan `HTTPBearer`/header `x-internal-token` dependency yang bandingkan dengan `settings.api_internal_token`, dan pasang di router internal.
 
-## 4. Flow Pesan Masuk dari Customer WhatsApp
+- **[High] `api_internal_token` tidak dipakai di mana pun kecuali config** — `app/core/config.py:20` define `api_internal_token` tapi tidak ada consumer di kode (grep only finds definition + .env.example). Sama dengan temuan Critical di atas: token tersedia tapi tidak dienforce.
 
-**Trigger:** Customer mengirim pesan ke nomor WhatsApp bisnis.
+- **[High] Semua endpoint agent masih `not_implemented`** — `whatsapp_agent.py`, `onboarding.py`, `crm_assistant.py`, `knowledge.py`, `tools.py` semuanya return scaffold. **Dampak**: bukan bug, tapi berarti integrasi AI↔API↔WA belum hidup; event `ai.agent.run_completed` dipublish dengan status `not_implemented`. **Rekomendasi**: jangan expose endpoint ke produksi sampai implementasi selesai, atau guard dengan feature flag.
 
-**Service:** `wa-worker` → `services/api` → `services/ai-engine` → `services/api` → `wa-worker`
+- **[Medium] `claim()` Redis mengembalikan `True` saat error** — `app/infra/cache.py:24-29`: jika Redis error, `claim` return `True` (artinya "dianggap berhasil klaim"). Ini mencegah false-duplicate-drop, tapi bisa menyebabkan **double-processing** saat Redis down. **Dampak**: idempotensi waiver gagal saat Redis down. **Rekomendasi**: return `False` (fail-closed) agar pesan di-drop/retry daripada diproses ganda — atau set strategi eksplisit.
 
-### 4a. wa-worker menerima pesan
+- **[Medium] Config tidak membaca `API_BASE_URL` dari compose env** — `app/core/config.py:19` default `http://localhost:3000`, tidak di-override di compose (tidak ada `API_BASE_URL` di compose env). ASUMSI: AI Engine mungkin tidak perlu call API secara langsung saat ini. **Rekomendasi**: set `API_BASE_URL` di compose agar konsisten jika dipakai nanti.
 
-wa-worker menerima event dari Baileys, normalisasi pesan, kirim ke api:
+- **[Low] `get_llm()` / `get_embeddings()` placeholder** — `app/core/llm.py` hanya `pass`. Config pakai `gemini_*` tapi `pyproject.toml` depend ke `openai`/`langchain-openai`. **Inkonsistensi**: env punya `OPENAI_API_KEY` + `GROQ_API_KEY` (compose:173-174) tapi config hardcode `gemini`. **Rekomendasi**: selaraskan provider (Gemini vs OpenAI/Groq) di config + env.
 
-```
-POST /internal/wa/incoming-message
-body: {
-  businessId, waMessageId, fromPhone, customerName,
-  messageType, text, mediaUrl, timestamp
-}
-```
+- **[Low] Dockerfile dev target menjalankan `app.main:app`** — `services/ai-enggine/Dockerfile:22` `uvicorn app.main:app`, tapi `main.py` root hanya re-export `from app.main import app`. Benar, tapi compose:170 jalankan `uvicorn main:app` (root `main.py`) — konsisten. **Info, tidak ada bug**.
 
-### 4b. api memproses pesan masuk
+- **[Info] Event envelope konsisten** — `app/infra/rabbitmq.py` mempublikasikan envelope dengan `eventId/eventName/producer/correlationId` yang match dengan format API (`event-bus.ts`). **Baik untuk tracing**.
 
-**Tabel yang dibaca:**
-```
-whatsapp_sessions     → pastikan botEnabled=true untuk businessId ini
-businesses            → cek status=active
-```
+### 3.4 WA Worker (services/wa-worker — Hono)
 
-**Idempotency check:**
-```
-messages              → cek apakah waMessageId sudah ada, jika ada skip
-```
+- **[High] Internal auth token berbeda nama dengan API** — WA Worker validasi `WA_WORKER_INTERNAL_TOKEN` (`middlewares/internal-auth.middleware.ts:10`), tapi API memanggil WA Worker via `apiClient` yang mengirim header `x-internal-token: env.API_INTERNAL_TOKEN` (`core/http-client.ts:9`). **Masalah**: WA Worker membandingkan terhadap `WA_WORKER_INTERNAL_TOKEN` (default `"dev-wa-worker-token"`), sedangkan API mengirim `API_INTERNAL_TOKEN` (default `"dev-api-token"`). **Keduanya berbeda** → request dari API ke WA Worker akan ditolak 401, KECUALI di `.env` diset sama (dan `.env` tidak menset `WA_WORKER_INTERNAL_TOKEN` sama sekali → fallback ke default berbeda). `docker-compose.yml:138` hanya inject `API_INTERNAL_TOKEN`, tidak `WA_WORKER_INTERNAL_TOKEN`. **Dampak**: alur outbound API→WA Worker (kirim pesan) kemungkinan gagal 401. **Rekomendasi**: gunakan satu env `INTERNAL_TOKEN` yang sama di semua service, atau set `WA_WORKER_INTERNAL_TOKEN=${API_INTERNAL_TOKEN}` di compose.
 
-**Tabel yang ditulis (dalam transaction):**
-```
-customers             → upsert by (businessId + waPhone)
-                        jika baru: buat record, leadStatus=new
-                        jika ada: update lastMessageAt, totalInteractions++
-conversations         → upsert conversation aktif untuk customer ini
-                        jika humanTakeover=true: skip ke step notif admin
-messages              → insert pesan inbound (direction=inbound, senderType=customer)
-```
+- **[Medium] Healthcheck tidak ada di compose** — `docker-compose.yml` untuk `wa-worker` dan `ai-engine` **tidak punya block `healthcheck`** (hanya mysql/redis/rabbitmq punya). Nginx `depends_on` hanya `web` + `api` (service_started), bukan wa-worker/ai-engine. **Dampak**: container dianggap "ready" sekalipun belum listen; request awal bisa gagal. **Rekomendasi**: tambahkan healthcheck `/health` untuk wa-worker & ai-engine.
 
-### 4c. api kirim ke ai-engine (jika bot aktif dan tidak human takeover)
+- **[Medium] Port 5000 dibind ke host** — `docker-compose.yml:139-140` `"5000:5000"`. WA Worker hanya menerima traffic internal dari API (via Docker network) dan tidak ada route publik di Nginx untuk `/5000`. **Dampak**: expose surface tidak perlu; jika token internal lemah (lihat above), orang bisa POST `/messages/send` langsung ke host port. **Rekomendasi**: hapus port mapping host, atau bind ke `127.0.0.1:5000` + jangan expose.
 
-```
-POST /ai/agent/run
-body: {
-  businessId, conversationId, customerId,
-  messageText, messageType, mediaUrl
-}
-```
+- **[Medium] Session data tidak fully persistent** — `docker-compose.yml:141-142` mount `wa_sessions:/app/sessions`, tapi `env.ts:16` `WHATSAPP_AUTH_DIR` default `.sessions` dan `Dockerfile:53` `VOLUME /app/.sessions` (note: **`.sessions` vs `sessions`** — mismatch path!). `session.manager.ts:23` resolve `path.resolve(env.WHATSAPP_AUTH_DIR, businessId)` = `/app/.sessions/<id>` atau `/app/sessions/<id>` tergantung env. Compose mount `wa_sessions:/app/sessions` tapi jika `WHATSAPP_AUTH_DIR=.sessions`, data tersimpan di `/app/.sessions` yang **tidak di-mount** → hilang saat container recreate. **Rekomendasi**: samakan path (`WHATSAPP_AUTH_DIR=/app/sessions`) dan mount volume ke path tersebut.
 
-**ai-engine membaca dari api (via HTTP):**
-```
-GET /internal/context/{businessId}   → agent_settings, businesses
-GET /internal/customers/{customerId} → customer profile, leadStatus
-GET /internal/conversations/{conversationId}/history → N pesan terakhir
-GET /internal/knowledge/search       → query FAISS dengan businessId filter
-GET /internal/products/{businessId}  → daftar produk available
-GET /internal/reservations/active    → reservasi aktif customer
-```
+- **[Low] `reconnectStrategy` tidak diset di RabbitMQ WA Worker** — `infra/rabbitmq.ts:13` `amqp.connect` tanpa reconnect handler eksplisit; amqplib punya default reconnect, tapi channel publish setelah disconnect bisa gagal silent (`if (!channel) return`). **Rekomendasi**: tambahkan reconnect loop.
 
-**ai-engine menjalankan LangGraph:**
-```
-receive_message
-→ load_business_context
-→ load_customer_profile
-→ load_conversation_history
-→ check_human_takeover
-→ classify_intent
-→ retrieve_knowledge       ← query FAISS, filter businessId
-→ decide_action
-→ tool_router
-→ execute_tool
-→ generate_reply
-→ save_state
-→ return_reply
-```
+- **[Info] Idempotensi inbound baik** — `session.manager.ts:62` claim message id di Redis sebelum callback API. Konsisten dengan API side (`internal.route.ts:32`).
 
-**ai-engine kirim hasil ke api:**
-```
-POST /internal/ai/reply
-body: {
-  businessId, conversationId, customerId,
-  replyText, intent, toolsExecuted, agentRunId,
-  tokensInput, tokensOutput, latencyMs
-}
-```
+### 3.5 Docker & Nginx (root + infra/nginx)
 
-### 4d. api menyimpan hasil AI dan trigger wa-worker
+- **[Critical] `.env` berisi secret asli dan ter-commit ke git** — `.gitignore:1-6` ignore `.env`, tapi `.env` ada di working tree (terbaca) dan `git ls-files` perlu cek; lebih parah: `.env` berisi `MYSQL_ROOT_PASSWORD=rootpassword`, `JWT_SECRET=changeme_supersecret_jwt_key`, `OPENAI_API_KEY`, dan **`DEEPSEEK_API_KEY=sk-a3168423...`** (`.env:42`) yang kemungkinan real key. **Risiko**: key bocor jika repo pernah push. **Rekomendasi**: **rotate semua key sekarang**, pindahkan ke secret manager / `.env` tidak ter-track, tambahkan `.env` ke `.gitignore` (sudah ada) dan `git rm --cached .env` + history purge.
 
-**Tabel yang ditulis:**
-```
-agent_runs            → insert log run (agentType, input, output, intent, status=success)
-tool_executions       → insert per tool yang dipanggil (toolName, input, output)
-messages              → insert pesan outbound (senderType=ai, direction=outbound)
-conversations         → update lastMessage, lastMessageAt, lastAiReplyAt
-customers             → update leadStatus jika intent menunjukkan perubahan stage
-```
+- **[High] Port internal terekspos (ai-engine :8001, wa-worker :5000, api :4000, rabbitmq :15673)** — `docker-compose.yml:74,103,140,184` mem-bind ke host. `api:4000` dan `rabbitmq:15673` (management UI!) terbuka di host. RabbitMQ management UI dengan password lemah (`nongki_rabbit/rabbitpassword`) adalah **risiko besar**. **Rekomendasi**: hanya `nginx:80/443` yang publik; sisanya internal saja (hapus port mapping atau bind `127.0.0.1`). Khususnya **tutup RabbitMQ management dari publik**.
 
-**api kirim ke wa-worker:**
-```
-POST /messages/send
-body: { businessId, toPhone, messageType, text }
-```
+- **[High] Naming `ai-enggine` (folder) vs `ai-engine` (compose service)** — `docker-compose.yml:162` `ai-engine:` tapi `build.context: ./services/ai-enggine` (double-g, sesuai disk folder). Service name `ai-engine` dipakai di network (`http://ai-engine:8000`). Ini konsisten secara Docker, tapi **sangat rawan salah ketik** saat ops menjalankan `docker logs ai-enggine` (gagal). **Rekomendasi**: rename folder ke `ai-engine` agar seragam.
 
-**wa-worker** mengirim ke WhatsApp via Baileys.
+- **[Medium] Nginx tidak proxy ke wa-worker & ai-engine secara publik, tapi `/ai/` rewrite drop prefix** — `infra/nginx/conf.d/default.conf:21-32` `rewrite ^/ai/(.*)$ /$1 break` → `ai-engine:8000`. Jadi `POST /ai/agent/whatsapp/respond` → `ai-engine:8000/agent/whatsapp/respond`. Sesuai router (`whatsapp_agent.py` prefix `/whatsapp`, main prefix `/agent`). **Benar**. Tapi karena AI Engine tidak punya auth (Critical di 3.3), siapa saja bisa hit `/ai/...` dari publik. **Rekomendasi**: jangan expose `/ai/` di Nginx sampai auth AI Engine selesai.
+
+- **[Medium] Nginx tidak set `client_max_body_size` untuk `/ai/` besar** — global `client_max_body_size 20M` (default.conf:7) cukup untuk sekarang, tapi upload file (knowledge PDF/image) via AI Engine bisa lewat 20M. **Rekomendasi**: tambahkan override per-location `/ai/` dengan limit lebih besar + proxy_read_timeout lebih panjang (saat ini 120s, OK untuk LLM tapi mungkin kurang untuk RAG berat).
+
+- **[Medium] Tidak ada resource limit (CPU/memory)** di compose untuk semua service. Di VPS spek terbatas, Baileys + FAISS + LLM dapat menyebabkan OOM. **Rekomendasi**: tambahkan `deploy.resources.limits` (memo: api 512M, ai-engine 1.5G, wa-worker 512M, redis 256M).
+
+- **[Low] `depends_on` Nginx hanya `service_started`** — `docker-compose.yml:260-264` nginx depend on `web`+`api` started, bukan healthy. Jika api butuh 30s warmup (migrasi Prisma), request awal 502. **Rekomendasi**: `condition: service_healthy` + healthcheck api.
+
+- **[Low] MySQL password di `command` healthcheck** — `docker-compose.yml:40` `mysqladmin ping ... -p${MYSQL_ROOT_PASSWORD}` mengexpose password di `docker inspect`/process list. Minor. **Rekomendasi**: gunakan `MYSQL_PID_FILE` atau healthcheck via socket.
+
+- **[Info] Multi-stage Dockerfile API & web sudah baik** (dev/builder/runner, alpine). WA Worker juga multi-stage. **Baik**.
 
 ---
 
-## 5. Flow Reservasi via AI
+## 4. Temuan Cross-Service
 
-**Trigger:** Customer mengetik intent reservasi (contoh: "reservasi besok 4 orang").
+- **[Critical] Internal token tidak konsisten & tidak dienforce di AI Engine** (lihat 3.3 Critical + 3.4 High). API dan WA Worker punya mekanisme token (API: `internal.route.ts:20` cek `x-internal-token === env.API_INTERNAL_TOKEN`; WA: `internal-auth.middleware.ts`), tapi **AI Engine tidak memvalidasi sama sekali**, dan **WA Worker memakai token nama berbeda** (`WA_WORKER_INTERNAL_TOKEN` vs `API_INTERNAL_TOKEN`). Kontrak internal auth tidak seragam.
 
-### 5a. ai-engine mendeteksi intent make_reservation
+- **[High] API contract doc vs implementasi mismatch (WA Worker ↔ API)** — `services/wa-worker/docs/api-contract.md` mendokumentasikan path `POST {API_URL}/internal/wa/incoming-message`, `.../session-status`, `.../message-status`, `.../error`. Tapi implementasi API hanya punya `POST /api/v1/internal/wa/messages/inbound` (`internal.route.ts:27`). Path `session-status`, `message-status`, `error` **tidak ada di API**. Sebaliknya WA Worker (`session.manager.ts:66`) memanggil `/internal/wa/messages/inbound` (cocok dengan implementasi, tapi tidak dengan doc). **Dampak**: dokumentasi menyesatkan; event session-status/message-status dari WA Worker ke API tidak akan sampai (no endpoint). **Rekomendasi**: perbarui `api-contract.md` ke path implementasi, dan tambahkan endpoint missing jika dibutuhkan (status delivery sangat penting untuk UX pesan).
 
-ai-engine melakukan slot filling melalui beberapa turn percakapan. Setiap turn mengikuti Flow 4 di atas (simpan pesan, jalankan AI, balas).
+- **[High] CORS + Cookie domain mismatch mengancam auth end-to-end** — API set `CORS_ORIGIN=localhost:5173` + cookie `SameSite=lax` + `secure` hanya di production flag. Nginx serve `PUBLIC_API_URL` di domain yang (ASUMSI) berbeda dari origin web. Jika web di `app.nongki.id` dan API di `api.nongki.id`, `SameSite=lax` tetap izinkan cross-site GET tapi credential cookie butuh `SameSite=none; Secure` untuk cross-origin penuh. **Rekomendasi**: tentukan apakah web & API same-origin (proxy `/api` di Nginx sudah same-origin!) — jika same-origin, cookie aman tanpa `none`. Pastikan `PUBLIC_API_URL` & web di **origin yang sama** (Nginx proxy `/api` → api sudah menjamin ini). Maka `CORS_ORIGIN` cukup `https://domain` dan `SameSite=lax` + `Secure` cukup.
 
-Setelah semua slot terpenuhi (date, time, guestCount, customerName), ai-engine memanggil tool:
+- **[Medium] Request ID propagation tidak konsisten** — API generate `x-request-id` → `correlationId` (`request-context.ts`), event bus menyertakan `correlationId` (`event-bus.ts:57`). Tapi **Nginx tidak generate/meneruskan `X-Request-ID`** (default.conf tidak set `proxy_set_header X-Request-ID`). WA Worker & AI Engine meneruskan `correlationId` di event tapi tidak membaca `x-request-id` dari inbound HTTP. **Rekomendasi**: tambahkan `proxy_set_header X-Request-ID $request_id;` di Nginx + generate `$request_id` (nginx:1.11+).
 
-```
-create_reservation_tool
-input: {
-  businessId, customerId, conversationId,
-  reservationDate, reservationTime, guestCount, notes
-}
-```
+- **[Medium] Event routing key tidak konsisten antar service** — API bind queue `nongki.api.wa-events` ke `wa.session.*`, `wa.message.received`, `wa.message.failed` (`rabbitmq.plugin.ts:18-20`). WA Worker mempublish `wa.session.started`, `wa.session.connected`, `wa.session.disconnected`, `wa.message.received`, `wa.message.sent`, `wa.message.failed` (`wa-events.ts`). Mapping: `wa.session.started` **tidak** di-bind oleh API (hanya `wa.session.*` → sebenarnya `wa.session.started` match `wa.session.*` ✓). Tapi `wa.message.sent` tidak di-bind API (API hanya bind `wa.message.received` + `wa.message.failed`) → event "sent" terbuang. AI Engine consume `ai.command.*` (`rabbitmq.py:49`) tapi tidak ada producer yang mempublish `ai.command.*` (API hanya publish `ai.agent.run_completed` dll, bukan `ai.command`). **Dampak**: command pattern AI↔API tidak tersambung; event "message sent" hilang. **Rekomendasi**: audit ulang binding vs routing key, dokumentasikan peta event.
 
-**api (dipanggil oleh ai-engine via tool) menulis:**
-```
-reservations          → insert baris baru (status=pending, reservationNumber auto-generate)
-customers             → update leadStatus=reserved, totalReservations++
-```
+- **[Medium] `API_INTERNAL_URL` default berbeda** — compose inject `API_INTERNAL_URL=http://api:4000/api/v1` (`.env:27`), tapi `wa-worker/src/config/env.ts:13` default `http://localhost:4000` dan `ai-enggine/config.py` tidak punya `API_INTERNAL_URL` sama sekali (pakai `api_base_url` default `localhost:3000`). Di compose ini konsisten karena env di-inject, tapi **di luar Docker (local dev tanpa compose)** WA Worker akan call `localhost:4000` tanpa `/api/v1` prefix → 404. **Rekomendasi**: seragamkan nama env (`API_INTERNAL_URL` di semua) + pastikan prefix `/api/v1` selalu ada.
 
-**api lalu otomatis membuat reminders:**
-```
-reminders             → insert reminder H-1 (type=reservation_confirmation, channel=whatsapp, scheduledAt=H-1 09:00)
-reminders             → insert reminder untuk admin (type=admin_task, channel=admin_notification, scheduledAt=1 jam sebelum reservasi)
-```
+- **[Low] Business ID `unknown` di AI Engine events** — `whatsapp_agent.py:19`, `knowledge.py:18`, `crm_assistant.py` hardcode `business_id="unknown"`. Event tracing per-tenant akan useless sampai payload nyata ada. **Rekomendasi**: teruskan `businessId` dari request.
 
-**api juga menulis:**
-```
-tool_executions       → log eksekusi create_reservation_tool
-audit_logs            → catat action=RESERVATION_CREATED
-```
-
-**Spreadsheet sync (jika diaktifkan):**
-```
-spreadsheet_sync_logs → insert log pending untuk entity reservations
-```
-Worker mengambil log pending dan push ke Google Sheets, update status=success/failed.
-
-### 5b. Admin konfirmasi reservasi di dashboard
-
-```
-POST /reservations/{id}/confirm
-```
-
-**Tabel yang ditulis:**
-```
-reservations          → update status=confirmed
-notifications         → buat notif type=new_reservation untuk semua admin
-audit_logs            → catat action=RESERVATION_CONFIRMED, userId=adminId
-```
-
-ai-engine (dipanggil via api) generate pesan konfirmasi dan kirim ke customer melalui Flow 4d.
+- **[High] API belum punya client ke WA Worker** — `services/api/src/clients/wa-worker.client.ts` hanya berisi 1 baris komentar placeholder. Padahal WA Worker menyediakan `/messages/send` untuk outbound. Artinya **bridge API → WA Worker (kirim balasan AI ke WhatsApp) belum tersambung di level kode API**, meski token mismatch (3.4 High) sudah jadi blocker terpisah. **Rekomendasi**: implementasikan client + panggilan dari orchestrator setelah token diseragamkan.
 
 ---
 
-## 6. Flow Order via AI
+## 5. Rekomendasi Prioritas (Action Items)
 
-**Trigger:** Customer mengetik intent order (contoh: "pesan 2 iced latte takeaway").
+**Critical (segera)**
+- [ ] **Rotate & remove secrets dari git** — `git rm --cached .env`, purge history, rotate `JWT_SECRET`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `MYSQL_ROOT_PASSWORD`, RabbitMQ creds. (`/.env`)
+- [ ] **Implementasikan validasi internal-token di AI Engine** (`app/core/security.py` + dependency di `app/main.py`) sebelum `/ai/` di-expose Nginx.
+- [ ] **Tutup port publik untuk service internal** — hapus/`127.0.0.1`-bind mapping `api:4000`, `wa-worker:5000`, `ai-engine:8001`, **dan especially `rabbitmq:15673`** di `docker-compose.yml`.
 
-### 6a. ai-engine memanggil tool create_order
+**High (sebelum produksi)**
+- [ ] **Seragamkan internal token**: satu env `INTERNAL_TOKEN`, set `WA_WORKER_INTERNAL_TOKEN=${API_INTERNAL_TOKEN}` di compose; pastikan AI Engine juga pakai env yang sama.
+- [ ] **Selaraskan CORS + Cookie** dengan domain produksi (`CORS_ORIGIN`, `COOKIE_SECURE=true`, `COOKIE_SAME_SITE` sesuai same/cross-origin).
+- [ ] **Rename folder `ai-enggine` → `ai-engine`** untuk hindari kebingungan operasional.
+- [ ] **Tambahkan healthcheck** untuk `wa-worker` & `ai-engine` di compose; ubah Nginx `depends_on` ke `service_healthy`.
+- [ ] **Perbaiki path session WhatsApp** (`WHATSAPP_AUTH_DIR` vs volume mount) agar tidak kehilangan session saat recreate.
+- [ ] **Implementasikan API → WA Worker client** (`clients/wa-worker.client.ts`) setelah token seragam.
 
-Setelah slot filling selesai (items, quantity, fulfillmentType):
+**Medium**
+- [ ] **Enable Redis reconnect** di API (`redis.ts`).
+- [ ] **Outbox pattern** untuk event publish API (auth `TODO`).
+- [ ] **Perbarui `api-contract.md`** WA Worker ↔ API ke path implementasi; tambahkan endpoint `session-status`/`message-status`/`error` di API jika diperlukan.
+- [ ] **Audit event routing keys** (binding vs publish) antar service; sambungkan `ai.command.*`.
+- [ ] **Nginx `X-Request-ID` propagation** + WA/AI baca `x-request-id`.
+- [ ] **Resource limits** CPU/memory di compose.
+- [ ] **AI Engine `claim()` fail-closed** saat Redis error.
+- [ ] **Seragamkan LLM provider** config (Gemini vs OpenAI/Groq) + env.
 
-**api menulis (dalam transaction):**
-```
-orders                → insert order baru (status=draft, paymentStatus=unpaid)
-order_items           → insert per item (productName, quantity, unitPrice, subtotal)
-orders                → update totalAmount = sum(subtotal)
-customers             → update totalOrders++
-```
-
-### 6b. Konfirmasi order ke customer
-
-ai-engine generate ringkasan order dan minta konfirmasi customer. Setelah customer konfirmasi:
-
-**api menulis:**
-```
-orders                → update status=pending_confirmation
-reminders             → insert reminder payment_follow_up jika order belum bayar dalam 10 menit
-```
-
----
-
-## 7. Flow Pembayaran AstraPay QRIS
-
-**Trigger:** Order/reservasi perlu dibayar, ai-engine memanggil create_payment_qris_tool.
-
-### 7a. Generate QRIS
-
-**api membaca:**
-```
-orders / reservations → ambil totalAmount, orderNumber
-businesses            → ambil businessId untuk merchantId AstraPay
-integrations          → ambil AstraPay credentials (accessToken encrypted)
-```
-
-**api memanggil AstraPay API:**
-```
-POST https://api.astrapay.com/v1/qris/generate
-header: Authorization, X-TIMESTAMP, X-SIGNATURE, X-PARTNER-ID, X-EXTERNAL-ID
-body: { partnerReferenceNo, amount, merchantId, validityPeriod }
-```
-
-**api menulis:**
-```
-payments              → insert baru (status=waiting_payment, merchantReferenceNo, qrContent, expiresAt)
-                        rawRequest = body yang dikirim ke AstraPay
-                        rawResponse = response dari AstraPay (referenceNo, qrContent)
-payment_events        → insert event (eventType=qr_generated)
-orders                → update paymentStatus=waiting_payment
-webhook_events        → insert record outgoing request log
-```
-
-ai-engine generate pesan dengan QR image URL dan kirim ke customer melalui wa-worker.
-
-### 7b. Customer membayar dan AstraPay kirim callback
-
-```
-POST /webhooks/astrapay/qris
-header: X-SIGNATURE, X-TIMESTAMP, X-PARTNER-ID
-body: { partnerReferenceNo, referenceNo, latestTransactionStatus, amount, ... }
-```
-
-**api memproses callback:**
-
-**Idempotency check:**
-```
-webhook_events        → cek apakah externalId (partnerReferenceNo) sudah diproses
-```
-
-Jika sudah → return 200, skip proses.
-
-**Tabel yang dibaca:**
-```
-payments              → find by merchantReferenceNo
-businesses            → validasi businessId cocok dengan merchantId di callback
-```
-
-**Validasi:**
-- Signature valid
-- Amount cocok
-- businessId cocok
-- Status belum paid (cegah double-process)
-
-**Tabel yang ditulis (jika validasi lolos, dalam transaction):**
-```
-payments              → update status=paid, paidAt=now(), providerReferenceNo, rawCallback
-payment_events        → insert event (eventType=payment_received, payload=raw callback)
-orders                → update paymentStatus=paid (jika payment terkait order)
-reservations          → update status=confirmed jika payment terkait reservasi
-webhook_events        → insert log callback dengan status=processed
-```
-
-**Setelah transaction commit:**
-```
-reminders             → cancel semua payment_follow_up yang scheduled untuk payment ini
-notifications         → buat notif type=new_order atau new_reservation untuk admin
-```
-
-**api trigger ai-engine** untuk generate pesan konfirmasi pembayaran ke customer.
-
-**ai-engine** generate pesan → api → wa-worker → customer WhatsApp.
-
-**Jika ada spreadsheet sync:**
-```
-spreadsheet_sync_logs → insert log pending untuk orders/reservations yang berubah
-```
-
-### 7c. QR Expired
-
-Cron job berjalan setiap menit:
-```
-SELECT * FROM payments WHERE status=waiting_payment AND expires_at < now()
-```
-
-**Tabel yang ditulis:**
-```
-payments              → update status=expired
-payment_events        → insert event (eventType=qr_expired)
-orders                → update paymentStatus=failed (jika terkait order)
-cron_jobs             → update result dan finishedAt
-```
-
-**api trigger ai-engine** generate pesan ke customer tawaran buat QR baru.
+**Low / Nice-to-have**
+- [ ] Buat API client terpusat di web yang baca `PUBLIC_API_URL`.
+- [ ] Ganti `adapter-vercel` → `adapter-node` di web (atau hapus stage runner Dockerfile).
+- [ ] `QueryClient` module-level singleton di web.
+- [ ] `vite.config.ts allowedHosts` dari env.
+- [ ] Singkirkan commented-out/dead scaffold (`get_llm`, `create_graph`, `tools.py/debug`) sebelum produksi.
 
 ---
 
-## 8. Flow Human Takeover
+## 6. Asumsi yang Perlu Dikonfirmasi
 
-**Trigger:** Customer ketik "admin" / "minta tolong" / ai-engine gagal answer setelah maxUnknownAttempts kali.
-
-### 8a. ai-engine memanggil human_handoff_tool
-
-**api menulis (dalam transaction):**
-```
-conversations         → set humanTakeover=true, aiEnabled=false, status=human_takeover
-human_handoffs        → insert baru (reason, summary dari AI, status=open)
-notifications         → insert notif type=new_handoff untuk semua admin business
-```
-
-**wa-worker** mengirim pesan ke customer: "Menghubungkan ke admin, mohon tunggu sebentar."
-
-Bot berhenti membalas. Semua pesan masuk tetap disimpan di `messages` tapi tidak diteruskan ke ai-engine.
-
-### 8b. Admin membalas dari dashboard inbox
-
-```
-POST /conversations/{id}/messages
-body: { text }
-```
-
-**Tabel yang ditulis:**
-```
-messages              → insert pesan (senderType=admin, direction=outbound)
-conversations         → update lastAdminReplyAt
-```
-
-**api** kirim ke wa-worker, wa-worker kirim ke customer WhatsApp.
-
-### 8c. Admin kembalikan ke AI
-
-```
-POST /conversations/{id}/return-to-ai
-```
-
-**Tabel yang ditulis:**
-```
-conversations         → set humanTakeover=false, aiEnabled=true, status=open
-human_handoffs        → update status=resolved, resolvedAt=now()
-audit_logs            → catat action=HANDOFF_RESOLVED
-```
-
----
-
-## 9. Flow Reminder Cron
-
-**Trigger:** Cron job berjalan setiap 1 menit di `services/api`.
-
-### 9a. Ambil reminder yang jatuh tempo
-
-```
-SELECT * FROM reminders
-WHERE status=scheduled
-AND scheduled_at <= now()
-AND business_id IN (SELECT id FROM businesses WHERE status=active)
-ORDER BY scheduled_at ASC
-LIMIT 100
-```
-
-### 9b. Proses per reminder
-
-**Tabel yang dibaca:**
-```
-businesses            → cek timezone dan jam operasional (via agent_settings.businessRules)
-customers             → ambil waPhone jika channel=whatsapp
-whatsapp_sessions     → pastikan botEnabled=true jika channel=whatsapp
-```
-
-**Jika channel=whatsapp:**
-
-api kirim ke wa-worker → wa-worker kirim pesan ke customer.
-
-**Jika channel=admin_notification:**
-
-```
-notifications         → insert notif untuk semua member business
-```
-
-**Tabel yang ditulis setelah kirim:**
-```
-reminders             → update status=sent, sentAt=now()
-cron_jobs             → update result (jumlah reminder diproses)
-```
-
-**Jika gagal kirim:**
-```
-reminders             → update status=failed
-cron_jobs             → catat errorMessage
-```
-
----
-
-## 10. Flow Spreadsheet Export (Google Sheets)
-
-**Trigger:** Entity dibuat/diupdate dan `autoSyncEnabled=true`, atau admin klik sync manual.
-
-### 10a. Trigger sync
-
-Setiap kali ada perubahan di `orders`, `reservations`, `customers`, atau `reminders`, api menulis:
-
-```
-spreadsheet_sync_logs → insert baru (entityType, entityId, status=pending)
-```
-
-### 10b. Worker memproses sync log
-
-Cron atau background job membaca:
-
-```
-SELECT * FROM spreadsheet_sync_logs
-WHERE status=pending
-ORDER BY created_at ASC
-LIMIT 50
-```
-
-**Tabel yang dibaca:**
-```
-spreadsheet_configs   → ambil spreadsheetId, sheetName, syncFlags
-integrations          → ambil Google OAuth token (accessTokenEncrypted)
-orders/reservations/customers → ambil data yang akan disync
-```
-
-**api memanggil Google Sheets API:**
-```
-POST https://sheets.googleapis.com/v4/spreadsheets/{id}/values/{range}:append
-```
-
-**Tabel yang ditulis:**
-```
-spreadsheet_sync_logs → update status=success/failed, syncedAt=now(), errorMessage jika gagal
-```
-
----
-
-## 11. Flow Knowledge Reindex
-
-**Trigger:** Admin edit/hapus dokumen atau klik tombol "Reindex" di dashboard.
-
-```
-POST /knowledge/reindex
-```
-
-**api menulis:**
-```
-knowledge_documents   → update status=processing untuk semua dokumen businessId
-knowledge_chunks      → hapus semua chunk lama untuk businessId ini
-```
-
-**api kirim ke ai-engine:**
-```
-POST /ai/knowledge/reindex
-body: { businessId }
-```
-
-**ai-engine:**
-- Hapus FAISS index untuk businessId
-- Loop semua dokumen status=processing
-- Re-extract, re-chunk, re-embed
-- Simpan FAISS baru
-
-**ai-engine kirim hasil ke api per dokumen:**
-```
-PATCH /internal/knowledge/{documentId}/indexed
-body: { chunks: [...], embeddingRefs: [...] }
-```
-
-**api menulis:**
-```
-knowledge_chunks      → insert chunk baru
-knowledge_documents   → update status=indexed / failed
-audit_logs            → catat action=KNOWLEDGE_REINDEXED
-```
-
----
-
-## 12. Flow Audit dan Observability
-
-Setiap action penting di seluruh flow di atas meninggalkan jejak di tabel berikut:
-
-**audit_logs** — ditulis oleh `services/api` untuk setiap:
-- Perubahan status entitas utama (order, reservation, payment, conversation)
-- Aktivasi/deaktivasi bot
-- Login/logout user
-- Koneksi/diskoneksi WhatsApp
-- Onboarding step completed
-
-**agent_runs** — ditulis setiap kali LangGraph dijalankan, berisi intent, token usage, latency.
-
-**tool_executions** — ditulis setiap kali AI memanggil tool (create_reservation, create_payment, dsb).
-
-**webhook_events** — ditulis untuk setiap:
-- Incoming callback dari AstraPay
-- Incoming event dari WhatsApp/Baileys
-- Outgoing request ke AstraPay (opsional untuk debugging)
-
-**cron_jobs** — ditulis setiap kali cron reminder atau sync berjalan.
-
----
-
-## Ringkasan Kepemilikan Tabel per Service
-
-| Tabel | Ditulis oleh | Dibaca oleh |
-|---|---|---|
-| users, businesses, business_members | api | api, web |
-| business_onboarding, onboarding_steps | api (dipicu oleh ai-engine hasil) | api, ai-engine, web |
-| agent_settings | api | api, ai-engine |
-| whatsapp_sessions | api (event dari wa-worker) | api, wa-worker, web |
-| customers, conversations, messages | api | api, ai-engine, web |
-| customer_tags, customer_tag_assignments | api | api, web |
-| knowledge_documents, knowledge_chunks | api (data dari ai-engine) | api, ai-engine |
-| product_categories, products | api | api, ai-engine, web |
-| orders, order_items | api (dipicu ai-engine tool) | api, web |
-| reservations | api (dipicu ai-engine tool) | api, web |
-| reminders | api (dipicu ai-engine tool + cron) | api (cron), web |
-| payments, payment_events | api | api, web |
-| integrations, spreadsheet_configs | api | api |
-| spreadsheet_sync_logs | api (cron) | api |
-| human_handoffs | api (dipicu ai-engine tool) | api, web |
-| agent_runs, tool_executions | api (dari hasil ai-engine) | api, web |
-| notifications | api | api, web |
-| audit_logs | api | api, web |
-| files | api | api, ai-engine |
-| webhook_events | api | api |
-| cron_jobs | api (cron runner) | api |
-
-**Aturan mutlak:**
-- wa-worker tidak pernah akses PostgreSQL langsung
-- ai-engine tidak pernah akses PostgreSQL langsung
-- Semua mutasi data harus melalui `services/api`
-- Setiap query harus menyertakan filter `businessId` untuk tenant isolation
-- FAISS index harus di-namespace per businessId agar knowledge tidak bocor antar tenant
+1. **Domain produksi & skema origin** — ASUMSI web & API akan di-serve di origin yang sama via Nginx (`/api` proxy). Jika benar, isu CORS cookie di-3.2/4 berkurang dampaknya; jika cross-origin (`app.nongki.id` vs `api.nongki.id`), butuh `SameSite=none; Secure`. Perlu konfirmasi DNS/proxy plan.
+2. **Apakah `.env` sudah pernah di-push ke remote** — tidak bisa diverifikasi hanya dari working tree. Jika ya, key di `.env:42` (DEEPSEEK) dan lainnya sudah bocor → wajib rotate.
+3. **Traffic ekspektasi & SLA** — tidak ada data; resource limit (Medium) disarankan berdasarkan asumsi VPS spek menengah. Perlu konfirmasi kapasitas host.
+4. **Apakah AI Engine memang perlu di-expose ke publik via `/ai/`** — ASUMSI tidak (hanya API/internal yang consume). Jika ya, auth wajib sebelum expose.
+5. **Konsumen endpoint `/tools/debug` & agent endpoints** — belum jelas siapa yang call; ASUMSI hanya internal. Perlu konfirmasi sebelum hapus/expose.
+6. **Apakah `api_base_url` (AI Engine) digunakan** — ASUMSI tidak (AI Engine saat ini passive/scaffold). Perlu konfirmasi untuk tahu apakah butuh set di compose.
+7. **Prisma datasource tanpa `url` explicit** — `schema.prisma:5-7` datasource hanya `provider="mysql"` tanpa `url`, mengandalkan `DATABASE_URL` env (Prisma convention). ASUMSI benar karena Prisma otomatis baca `DATABASE_URL`. Tapi adapter dipasang manual (`@prisma/adapter-mariadb`) — perlu konfirmasi MySQL 8 vs MariaDB (README API menyebut "PostgreSQL" di tech stack padahal `mysql://` + MariaDB adapter dipakai → inkonsistensi dokumentasi).
+8. **Apakah wa-worker `messages/send` dipanggil dari API** — ASUMSI ya (bridge outbound), tapi `clients/wa-worker.client.ts` hanya berisi komentar placeholder (1 baris). Artinya **API saat ini belum punya implementasi pemanggil ke WA Worker** → fitur kirim pesan balasan AI→WA belum tersambung di level kode API.

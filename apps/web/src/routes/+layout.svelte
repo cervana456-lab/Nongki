@@ -1,11 +1,11 @@
 <script lang="ts">
+	import CoffeeAgentWidget from '$lib/components/ai/CoffeeAgentWidget.svelte';
 	import Header from '$lib/components/layouts/Header.svelte';
 	import './layout.css';
 
 	let { children } = $props();
 
 	import QueryProvider from '$lib/providers/QueryProvider.svelte';
-
 
 	const title = 'Nongki — AI WhatsApp Assistant untuk Bisnis';
 	const description =
@@ -16,7 +16,10 @@
 	<title>{title}</title>
 
 	<meta name="description" content={description} />
-	<meta name="keywords" content="Nongki, AI WhatsApp, bisnis, UMKM, chatbot, CRM, order, reservasi" />
+	<meta
+		name="keywords"
+		content="Nongki, AI WhatsApp, bisnis, UMKM, chatbot, CRM, order, reservasi"
+	/>
 	<meta name="author" content="Nongki" />
 	<meta name="robots" content="index, follow" />
 
@@ -38,4 +41,6 @@
 	<main>
 		{@render children()}
 	</main>
+
+	<CoffeeAgentWidget />
 </QueryProvider>
