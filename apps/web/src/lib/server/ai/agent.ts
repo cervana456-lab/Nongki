@@ -4,7 +4,6 @@ import { createAgent, tool } from 'langchain';
 import { z } from 'zod';
 
 import type { ChatMessage, ChatMode, ChatSource } from '$lib/ai/types';
-import { advisorScenarioSchema, analyzeAdvisorScenario, defaultAdvisorScenario } from './advisor';
 import { getAiConfig } from './config';
 import { retrieveKnowledge } from './vector-store';
 
@@ -44,18 +43,13 @@ ${initialContext}`;
 		return `${common}
 
 MODE: TANYA NINGKI
-Fokus pada fitur, arsitektur, MVP, demo flow, risiko, roadmap, dan positioning Ningki. Gunakan search_ningki_knowledge bila konteks awal belum cukup. Berikan jawaban langsung dan sertakan alasan yang relevan.`;
+Fokus mengenalkan apa itu Ningki, siapa yang cocok menggunakannya, masalah yang diselesaikan, manfaat, fitur unggulan, cara kerja, dan perbedaannya dari chatbot atau CRM biasa. Utamakan bahasa manfaat untuk owner UMKM F&B. Jangan terlalu teknis kecuali pengguna memintanya. Gunakan search_ningki_knowledge bila konteks awal belum cukup. Akhiri dengan langkah lanjutan yang relevan tanpa memaksa.`;
 	}
 
 	return `${common}
 
-MODE: SIMULASI CRM ADVISOR
-- Semua analisis wajib diberi label **Simulasi**, bukan fakta bisnis pengguna.
-- Dataset awal: ${JSON.stringify(defaultAdvisorScenario)}.
-- Jika pengguna memberi angka baru, gunakan angka terbaru itu menggantikan nilai default yang sesuai.
-- Sebelum memberi rekomendasi berbasis angka, panggil analyze_crm_scenario agar evidence dihitung deterministik.
-- Format growth card: Problem, Evidence, Recommendation, Suggested Action, Expected Impact, Risk.
-- Hanya buat saran, follow-up draft, atau campaign draft. Jangan mengeksekusi action.`;
+MODE: CARA MULAI NINGKI
+Fokus membantu calon pengguna memahami cara mencoba atau memesan Ningki, memilih paket, mendaftar, menyiapkan workspace, dan memahami proses penggunaan dari chat WhatsApp sampai insight serta action bisnis. Jelaskan dengan langkah yang sederhana dan berurutan. Bedakan dengan jujur antara workspace demo yang tersedia saat ini dan alur produk yang direncanakan. Jangan mengarang harga final, kontak penjualan, atau fitur yang belum didukung knowledge. Gunakan search_ningki_knowledge bila konteks awal belum cukup.`;
 }
 
 function createModel() {
@@ -137,26 +131,15 @@ export async function prepareAgentRun(input: AgentRunInput): Promise<PreparedAge
 		{
 			name: 'search_ningki_knowledge',
 			description:
-				'Cari fakta produk, fitur, arsitektur, MVP, roadmap, risiko, atau demo Ningki pada knowledge base.',
+				'Cari informasi tentang produk, manfaat, fitur, cara kerja, paket, cara mulai, positioning, atau roadmap Ningki pada knowledge base.',
 			schema: z.object({ query: z.string().min(2).max(500) })
-		}
-	);
-
-	const analyzeScenario = tool(
-		async (scenario) => JSON.stringify(analyzeAdvisorScenario(scenario), null, 2),
-		{
-			name: 'analyze_crm_scenario',
-			description:
-				'Hitung evidence simulasi CRM secara deterministik sebelum membuat insight atau Growth Card.',
-			schema: advisorScenarioSchema
 		}
 	);
 
 	const model = createModel();
 	const systemPrompt = createSystemPrompt(input.mode, initialKnowledge.context);
 	const messages = toLangChainMessages(input.messages);
-	const tools = input.mode === 'advisor' ? [searchKnowledge, analyzeScenario] : [searchKnowledge];
-	const agent = createAgent({ model, tools, systemPrompt });
+	const agent = createAgent({ model, tools: [searchKnowledge], systemPrompt });
 
 	async function* tokens(): AsyncGenerator<string> {
 		let emitted = false;

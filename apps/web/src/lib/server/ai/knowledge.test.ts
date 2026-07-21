@@ -9,6 +9,7 @@ describe('Ningki knowledge source', () => {
 		expect(sections.length).toBeGreaterThanOrEqual(20);
 		expect(sections.some((item) => item.title.includes('Owner WhatsApp Digest'))).toBe(true);
 		expect(sections.some((item) => item.title.includes('Knowledge-Gap'))).toBe(true);
+		expect(sections.some((item) => item.title.includes('Cara mulai'))).toBe(true);
 	});
 
 	it('menghasilkan chunk dengan metadata sumber dan id stabil', async () => {

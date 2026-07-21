@@ -1,14 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import {
-		BookOpen,
-		ChartNoAxesCombined,
-		RotateCcw,
-		Send,
-		Sparkles,
-		Square,
-		X
-	} from '@lucide/svelte';
+	import { BookOpen, RotateCcw, Rocket, Send, Square, X } from '@lucide/svelte';
 
 	import { streamChat } from '$lib/ai/chat-client';
 	import type { ChatMessage, ChatMode, ChatSource, ChatStreamEvent } from '$lib/ai/types';
@@ -22,14 +14,14 @@
 
 	const suggestedPrompts: Record<ChatMode, string[]> = {
 		guide: [
-			'Apa bedanya Ningki dengan chatbot biasa?',
-			'Jelaskan fitur Owner WhatsApp Digest',
-			'Apa saja scope MVP Ningki?'
+			'Apa itu Ningki dan untuk siapa?',
+			'Masalah bisnis apa yang diselesaikan Ningki?',
+			'Apa bedanya Ningki dengan chatbot biasa?'
 		],
 		advisor: [
-			'Analisis dataset demo dan buat Growth Card',
-			'Buat draft follow-up untuk 2 hot lead',
-			'Apa peluang dari 9 pertanyaan menu non-coffee?'
+			'Bagaimana cara mulai menggunakan Ningki?',
+			'Bagaimana proses Ningki dari chat sampai action?',
+			'Paket Ningki mana yang cocok untuk bisnis saya?'
 		]
 	};
 
@@ -42,15 +34,15 @@
 	let streamController = $state<AbortController>();
 	let sessionId = $state('');
 	let messageList = $state<HTMLDivElement>();
-	let textarea = $state<HTMLTextAreaElement>();
+	let textarea = $state<HTMLTextAreaElement | null>(null);
 
 	const greeting = (currentMode: ChatMode): UiMessage => ({
 		id: crypto.randomUUID(),
 		role: 'assistant',
 		content:
 			currentMode === 'guide'
-				? 'Halo! Aku **Ningki AI** ☕\n\nTanyakan fitur, arsitektur, atau rencana MVP Ningki Reactive CRM.'
-				: 'Halo! Mode **Simulasi CRM Advisor** aktif. ☕\n\nAku memakai dataset demo dan akan menandai semua insight sebagai simulasi.'
+				? 'Halo! Aku **Ningki AI** ☕\n\nAku siap membantu kamu mengenal Ningki, manfaatnya, dan cara Ningki membantu bisnis F&B lewat WhatsApp.'
+				: 'Mau mulai pakai **Ningki**? 🚀\n\nAku bisa menjelaskan cara daftar, pilihan paket, dan prosesnya dari chat pelanggan sampai menjadi insight dan action bisnis.'
 	});
 
 	function startSession() {
@@ -168,7 +160,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Trigger
 		class="group fixed right-4 bottom-4 z-[60] grid size-16 place-items-center rounded-3xl border-2 border-primary bg-background text-primary shadow-[0_7px_0_0_var(--shadow-3d-primary)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary active:translate-y-1 active:shadow-[0_2px_0_0_var(--shadow-3d-primary)] sm:right-6 sm:bottom-6"
-		aria-label="Buka Ningki AI"
+		aria-label="Kenali Ningki"
 	>
 		<CoffeeRobot
 			class="size-13 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3"
@@ -183,9 +175,9 @@
 		showCloseButton={false}
 		class="top-auto right-0 bottom-0 left-0 z-[70] flex h-[min(720px,calc(100dvh-1rem))] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-b-none border-2 p-0 sm:right-6 sm:bottom-6 sm:left-auto sm:h-[min(680px,calc(100dvh-3rem))] sm:w-[410px] sm:max-w-[calc(100vw-3rem)] sm:rounded-3xl"
 	>
-		<Dialog.Title class="sr-only">Ningki AI Chat</Dialog.Title>
+		<Dialog.Title class="sr-only">Kenali Ningki</Dialog.Title>
 		<Dialog.Description class="sr-only"
-			>Tanya produk Ningki atau coba simulasi Reactive CRM Advisor.</Dialog.Description
+			>Pelajari manfaat, cara kerja, paket, dan cara mulai menggunakan Ningki.</Dialog.Description
 		>
 
 		<header class="shrink-0 border-b bg-primary/8 px-4 pt-4 pb-3">
@@ -196,9 +188,9 @@
 					<CoffeeRobot class="size-9" />
 				</div>
 				<div class="min-w-0 flex-1">
-					<h2 class="truncate text-base font-bold">Ningki AI</h2>
+					<h2 class="truncate text-base font-bold">Ningki Assistant</h2>
 					<p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-						<span class="size-2 rounded-full bg-emerald-500"></span>Reactive CRM companion
+						<span class="size-2 rounded-full bg-emerald-500"></span>Kenali produk & cara mulainya
 					</p>
 				</div>
 				<Button
@@ -219,7 +211,7 @@
 					disabled={streaming}
 					onclick={() => selectMode('guide')}
 				>
-					<BookOpen class="size-3.5" /> Tanya Ningki
+					<BookOpen class="size-3.5" /> Kenalan Ningki
 				</button>
 				<button
 					type="button"
@@ -230,7 +222,7 @@
 					disabled={streaming}
 					onclick={() => selectMode('advisor')}
 				>
-					<ChartNoAxesCombined class="size-3.5" /> Simulasi Advisor
+					<Rocket class="size-3.5" /> Cara Mulai
 				</button>
 			</div>
 		</header>
@@ -250,7 +242,7 @@
 					<div class="max-w-[84%]">
 						{#if message.role === 'assistant' && mode === 'advisor'}<span
 								class="mb-1 inline-flex items-center gap-1 rounded-full bg-secondary/25 px-2 py-0.5 text-[10px] font-bold text-secondary-foreground"
-								><Sparkles class="size-3" /> SIMULASI</span
+								><Rocket class="size-3" /> CARA MULAI</span
 							>{/if}
 						<div
 							class="rounded-2xl border-2 px-3.5 py-2.5 text-sm"
@@ -294,7 +286,7 @@
 		{#if messages.length <= 1}
 			<div class="shrink-0 px-4 pb-3">
 				<p class="mb-2 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-					Coba tanyakan
+					Mau tahu apa?
 				</p>
 				<div class="flex flex-wrap gap-2">
 					{#each suggestedPrompts[mode] as prompt}<button
@@ -313,7 +305,9 @@
 					bind:value={input}
 					rows={1}
 					maxlength={2000}
-					placeholder={mode === 'guide' ? 'Tanya tentang Ningki…' : 'Ceritakan skenario bisnis…'}
+					placeholder={mode === 'guide'
+						? 'Tanya apa saja tentang Ningki…'
+						: 'Tanya cara mulai pakai Ningki…'}
 					class="max-h-28 min-h-11 resize-none py-2.5 shadow-none"
 					disabled={streaming}
 					oninput={resizeTextarea}
@@ -336,7 +330,7 @@
 				{/if}
 			</div>
 			<p class="mt-2 text-center text-[10px] text-muted-foreground">
-				AI dapat keliru. Verifikasi rekomendasi penting.
+				Ningki membantu chat WhatsApp jadi data, insight, dan action bisnis.
 			</p>
 		</footer>
 	</Dialog.Content>

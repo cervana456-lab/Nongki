@@ -134,6 +134,12 @@ const sections: KnowledgeSection[] = [
 		title: 'Kesimpulan produk',
 		category: 'overview',
 		content: `Ningki harus diposisikan sebagai Reactive CRM, bukan chatbot. MVP harus fokus. Owner WhatsApp Digest adalah fitur juara. Knowledge-Gap Detector melawan cold-start dan membuat sistem self-improving. Campaign Draft dan Approval mengubah insight menjadi action secara aman. ML berat hanya masuk roadmap setelah data cukup.`
+	},
+	{
+		section: '25',
+		title: 'Cara mulai, paket, dan proses penggunaan',
+		category: 'getting-started',
+		content: `Untuk mencoba Ningki dari website saat ini, calon pengguna dapat membuka halaman Harga di /pricing, memilih paket yang sesuai, lalu menekan Mulai Gratis untuk membuat workspace demo melalui /auth/register. Form demo meminta nama owner, email, password, nama bisnis, dan tipe bisnis. Starter gratis ditujukan untuk satu outlet yang ingin mencoba WhatsApp CRM dasar, Customer 360 dasar, AI reply terbatas, knowledge base dasar, dan dashboard ringkas. Setelah kebutuhan AI bertambah, owner dapat memakai Kredit AI pay-as-you-go untuk AI reply tambahan, Reactive Insight, Owner WhatsApp Digest, Campaign Draft, follow-up draft, dan Knowledge-Gap processing. Paket Pro masih coming soon untuk multi-outlet dan kebutuhan lanjutan; nominal kredit dan harga Pro belum final karena menunggu pilot dan riset pricing. Dalam alur produk Ningki, bisnis menyiapkan workspace dan knowledge, menghubungkan nomor WhatsApp bisnis, lalu chat pelanggan ditangkap sebagai data CRM. AI membantu menjawab atau mengarahkan order dan reservasi, Customer 360 diperbarui, sistem mendeteksi pola dan peluang, lalu owner menerima insight atau WhatsApp Digest. Action seperti follow-up dan campaign tetap menunggu review serta approval owner. Alur nilainya adalah chat → data → insight → rekomendasi → approval → action.`
 	}
 ];
 
