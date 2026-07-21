@@ -10,8 +10,8 @@ const configSchema = z.object({
 		.string()
 		.min(1)
 		.default('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'),
-	UPSTASH_REDIS_REST_URL: z.string().url(),
-	UPSTASH_REDIS_REST_TOKEN: z.string().min(1)
+	UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+	UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional()
 });
 
 export type AiConfig = {
@@ -20,8 +20,8 @@ export type AiConfig = {
 	model: string;
 	hfToken: string;
 	hfEmbeddingModel: string;
-	upstashUrl: string;
-	upstashToken: string;
+	upstashUrl?: string;
+	upstashToken?: string;
 };
 
 let cachedConfig: AiConfig | undefined;

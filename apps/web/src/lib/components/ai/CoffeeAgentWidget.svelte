@@ -104,18 +104,25 @@
 			.filter((message) => message.content.trim())
 			.slice(-12)
 			.map(({ role, content: messageContent }) => ({ role, content: messageContent }));
-		const assistant: UiMessage = { id: crypto.randomUUID(), role: 'assistant', content: '' };
-		messages.push(assistant);
+		const assistantIndex =
+			messages.push({ id: crypto.randomUUID(), role: 'assistant', content: '' }) - 1;
 		streaming = true;
 		streamController = new AbortController();
 
 		try {
 			await streamChat(
 				{ sessionId, mode, messages: history },
-				{ signal: streamController.signal, onEvent: (event) => handleEvent(event, assistant) }
+				{
+					signal: streamController.signal,
+					onEvent: (event) => {
+						const assistant = messages[assistantIndex];
+						if (assistant) handleEvent(event, assistant);
+					}
+				}
 			);
 		} catch (error) {
-			if ((error as Error).name !== 'AbortError') {
+			const assistant = messages[assistantIndex];
+			if (assistant && (error as Error).name !== 'AbortError') {
 				assistant.failed = true;
 				assistant.content ||= (error as Error).message;
 			}
